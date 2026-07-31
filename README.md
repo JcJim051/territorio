@@ -47,6 +47,12 @@ npm run build
 
 Las pruebas cubren aislamiento entre campañas, tokens revocados, registro público, cifrado documental y prevención de ciclos.
 
+## Arquitectura
+
+Las decisiones arquitectónicas se mantienen en
+[`docs/architecture/decisions`](docs/architecture/decisions/README.md). Los ADR
+en estado `Proposed` no autorizan cambios de implementación.
+
 ## Homelab con Docker
 
 1. Copiar `.env.docker.example` a `.env.docker` y reemplazar todas las credenciales.

@@ -1,0 +1,4 @@
+[gdrive]
+type = drive
+scope = drive.file
+token = REPLACE_WITH_RCLONE_TOKEN

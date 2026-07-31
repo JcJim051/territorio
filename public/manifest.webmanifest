@@ -1,0 +1,10 @@
+{
+    "name": "Territorio · Inteligencia de campaña",
+    "short_name": "Territorio",
+    "description": "Gestión territorial, agenda y logística para campañas políticas.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f5f6f2",
+    "theme_color": "#0d4d4b",
+    "icons": []
+}

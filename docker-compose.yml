@@ -1,9 +1,25 @@
+x-database-environment: &database-environment
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_DATABASE: "${DOCKER_DB_DATABASE:-territorio}"
+  DB_USERNAME: "${DOCKER_DB_USERNAME:-territorio}"
+  DB_PASSWORD: "${DOCKER_DB_PASSWORD:-change-me}"
+
+x-app-environment: &app-environment
+  <<: *database-environment
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  QUEUE_CONNECTION: redis
+
 services:
   app:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
     env_file: "${APP_ENV_FILE:-.env}"
+    environment:
+      <<: *app-environment
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,6 +44,8 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     env_file: "${APP_ENV_FILE:-.env}"
+    environment:
+      <<: *app-environment
     command: php artisan queue:work redis --sleep=2 --tries=3 --timeout=120
     depends_on:
       - app
@@ -40,6 +58,8 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     env_file: "${APP_ENV_FILE:-.env}"
+    environment:
+      <<: *app-environment
     command: php artisan schedule:work
     depends_on:
       - app
@@ -50,14 +70,14 @@ services:
   postgres:
     image: postgis/postgis:16-3.4-alpine
     environment:
-      POSTGRES_DB: "${DB_DATABASE:-territorio}"
-      POSTGRES_USER: "${DB_USERNAME:-territorio}"
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-change-me}"
+      POSTGRES_DB: "${DOCKER_DB_DATABASE:-territorio}"
+      POSTGRES_USER: "${DOCKER_DB_USERNAME:-territorio}"
+      POSTGRES_PASSWORD: "${DOCKER_DB_PASSWORD:-change-me}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/10-extensions.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-territorio} -d ${DB_DATABASE:-territorio}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DOCKER_DB_USERNAME:-territorio} -d ${DOCKER_DB_DATABASE:-territorio}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -80,6 +100,8 @@ services:
       context: .
       dockerfile: docker/backup/Dockerfile
     env_file: "${APP_ENV_FILE:-.env}"
+    environment:
+      <<: *database-environment
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,8 +116,8 @@ services:
       MB_DB_TYPE: postgres
       MB_DB_DBNAME: "${METABASE_DB_DATABASE:-metabase}"
       MB_DB_PORT: 5432
-      MB_DB_USER: "${DB_USERNAME:-territorio}"
-      MB_DB_PASS: "${DB_PASSWORD:-change-me}"
+      MB_DB_USER: "${DOCKER_DB_USERNAME:-territorio}"
+      MB_DB_PASS: "${DOCKER_DB_PASSWORD:-change-me}"
       MB_DB_HOST: postgres
     depends_on:
       postgres:

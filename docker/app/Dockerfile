@@ -24,7 +24,9 @@ WORKDIR /var/www/html
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
-RUN mkdir -p storage/framework/{cache,sessions,views} storage/app/private bootstrap/cache \
+RUN rm -f bootstrap/cache/*.php \
+    && mkdir -p storage/framework/{cache,sessions,views} storage/app/private bootstrap/cache \
+    && php artisan package:discover --ansi \
     && chown -R www-data:www-data storage bootstrap/cache
 USER www-data
 CMD ["php-fpm"]

@@ -31,3 +31,6 @@ con `ROLLBACK`. No imprime datos personales ni intenta corregir registros.
 
 Conservar fecha, entorno, versión de esquema y salida agregada como evidencia de
 cada ejecución. No versionar credenciales ni resultados con datos sensibles.
+
+La primera ejecución está registrada en
+[`docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md`](../../docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md).

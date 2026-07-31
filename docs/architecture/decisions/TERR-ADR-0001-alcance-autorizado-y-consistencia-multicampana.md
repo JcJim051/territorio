@@ -1,9 +1,10 @@
 # TERR-ADR-0001 — Alcance autorizado y consistencia multicampaña
 
-- **Estado:** Proposed
+- **Estado:** Accepted
 - **Fecha:** 2026-07-31
 - **Decisor:** Propietario técnico de Territorio
-- **Implementación:** No autorizada
+- **Aprobación:** 2026-07-31
+- **Implementación:** Fase 0 autorizada; aplicación y migraciones no autorizadas
 
 ## Contexto
 
@@ -73,7 +74,7 @@ haya demostrado limpieza de contexto en conexiones y workers persistentes.
 Maximiza aislamiento físico, pero multiplica migraciones, respaldos, conexiones
 y analítica. Es desproporcionado para la etapa actual.
 
-## Decisión propuesta
+## Decisión
 
 Adoptar una base y un esquema compartidos con estas reglas:
 
@@ -93,7 +94,7 @@ Adoptar una base y un esquema compartidos con estas reglas:
 8. Mantener los filtros manuales durante la transición.
 9. Mantener RLS fuera de esta primera decisión de implementación.
 
-## Piloto propuesto
+## Piloto autorizado por fases
 
 Antes de extender el patrón, validarlo sobre tres relaciones representativas:
 
@@ -101,9 +102,10 @@ Antes de extender el patrón, validarlo sobre tres relaciones representativas:
 - asistencia → reunión y persona;
 - evento externo → conexión y reunión.
 
-El piloto comenzará con el [preflight de aislamiento](../../../database/preflight/tenant-isolation-pilot.sql),
-seguirá con pruebas PostgreSQL que demuestren rechazo de relaciones cruzadas y
-solo después podrá proponer migraciones.
+La Fase 0 autoriza ejecutar el
+[preflight de aislamiento](../../../database/preflight/tenant-isolation-pilot.sql)
+en un PostgreSQL controlado. Las pruebas de rechazo y las migraciones requieren
+una autorización posterior basada en sus resultados.
 
 ## Decisiones explícitamente pendientes
 

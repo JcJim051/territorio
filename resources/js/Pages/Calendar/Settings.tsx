@@ -50,7 +50,7 @@ export default function CalendarSettings({ connection, calendars, configured, se
     useEffect(() => {
         if (!activeSync) return;
         const timer = window.setInterval(() => {
-            router.reload({ only: ['connection', 'syncRuns'], preserveScroll: true, preserveState: true });
+            router.reload({ only: ['connection', 'syncRuns'] });
         }, 2500);
 
         return () => window.clearInterval(timer);

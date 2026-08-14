@@ -22,7 +22,6 @@ type Meeting = {
     title: string;
     type: string;
     status: string;
-    isReferralNode: boolean;
     startsAt: string;
     location?: string;
     expectedAttendees: number;
@@ -35,6 +34,7 @@ type Person = {
     phone?: string;
     document: string;
     status: string;
+    isReferralNode: boolean;
     verifiedAt?: string;
     createdAt: string;
     place?: string;

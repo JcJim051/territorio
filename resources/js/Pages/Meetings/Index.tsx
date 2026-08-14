@@ -88,7 +88,7 @@ export default function Meetings({ meetings, externalEvents, leaders, territorie
     useEffect(() => {
         if (!meetings.some((meeting) => meeting.googleSync === 'queued')) return;
         const timer = window.setInterval(() => {
-            router.reload({ only: ['meetings', 'calendarIntegration'], preserveScroll: true, preserveState: true });
+            router.reload({ only: ['meetings', 'calendarIntegration'] });
         }, 2500);
 
         return () => window.clearInterval(timer);

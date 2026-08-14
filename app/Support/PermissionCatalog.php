@@ -53,6 +53,7 @@ class PermissionCatalog
                     ['key' => 'audit.view', 'label' => 'Consultar auditoría'],
                     ['key' => 'audit.export', 'label' => 'Exportar auditoría'],
                     ['key' => 'campaign.settings.manage', 'label' => 'Configurar la operación de la campaña'],
+                    ['key' => 'public_site.manage', 'label' => 'Administrar página pública del candidato'],
                 ],
             ],
             [

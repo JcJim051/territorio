@@ -1,0 +1,66 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.devops
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1
+state: completed
+objective: Evaluar independientemente la preparacion operativa y la reversion de la implementacion del piloto multicampana sin desplegarla.
+scope:
+  includes:
+    - Revision de migraciones, transaccionalidad, indices concurrentes, NOT VALID y orden de validacion.
+    - Compatibilidad del laboratorio Docker/PostgreSQL 16 y ejecucion reproducible con datos sinteticos.
+    - Plan separado de reversion de aplicacion, constraints, indices y datos.
+    - Gates y observabilidad necesarios para una futura activacion, sin ejecutarla.
+  excludes:
+    - Modificar codigo o infraestructura, desplegar, promover o aceptar riesgos.
+    - Produccion, datos reales, secretos, backups o servicios externos.
+    - Operacion de relaciones fuera del piloto.
+capability:
+  id: deployment.readiness.assessment
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.devops
+  agent_id: gc-devops
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+    - gate.material-action:approved
+  approval_gate_refs:
+    - gate.material-action
+    - gate.release
+constraints:
+  - Solo lectura del repositorio y diagnosticos no destructivos.
+  - No modificar infraestructura, codigo, esquema o datos persistentes.
+  - No desplegar ni promover; el gate.release sigue cerrado.
+  - Reportar limitaciones y condiciones de reversibilidad sin aceptar riesgo.
+context_refs:
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: context.proposal
+    type: decision.record
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/reports/propuesta-implementable.md
+  - id: context.backend
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/backend.yaml
+  - id: context.docker
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-docker-reproducibility.md
+expected_outputs:
+  - Dictamen ready, not-ready o blocked con evidencia y condiciones.
+  - Plan de preparacion, activacion y reversion separado por capa.
+  - Result Envelope valido con responsabilidad gc-devops hacia gc-orchestrator.
+acceptance_criteria:
+  - id: criterion.migrations
+    statement: La estrategia de indices, FK NOT VALID y validacion es operativamente reproducible y segura.
+  - id: criterion.rollback
+    statement: La reversion separa aplicacion, constraints, indices y datos con orden explicito.
+  - id: criterion.environment
+    statement: El laboratorio PostgreSQL 16 es reproducible o su bloqueo queda demostrado.
+  - id: criterion.release
+    statement: No ocurre despliegue y se identifican gates obligatorios para una futura activacion.
+classification: internal

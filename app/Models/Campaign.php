@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Campaign extends Model
 {
@@ -51,5 +52,10 @@ class Campaign extends Model
     public function serviceCredentials(): HasMany
     {
         return $this->hasMany(CampaignServiceCredential::class);
+    }
+
+    public function publicSite(): HasOne
+    {
+        return $this->hasOne(CampaignPublicSite::class);
     }
 }

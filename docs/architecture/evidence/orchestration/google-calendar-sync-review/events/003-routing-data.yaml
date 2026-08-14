@@ -1,0 +1,18 @@
+event_schema: "1"
+id: event.google-calendar-review.003
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 3
+previous_event_id: event.google-calendar-review.002
+occurred_at: "2026-08-03T21:23:19Z"
+event_type: routing_decided
+actor: {type: agent, ref: gc-orchestrator}
+subject: {task_id: territorio.google-calendar-sync.review.data}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002, TERR-ADR-0001]
+evidence_refs:
+  - {id: evidence.composition, type: organization.composition, locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml}
+details:
+  capability: data.isolation.assessment
+  position_id: position.data
+  agent_id: gc-data
+  reason: La nueva tabla e invariantes multicampana requieren revision independiente de position.data.

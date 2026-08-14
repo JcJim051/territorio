@@ -19,7 +19,21 @@ class CalendarChangePendingNotification extends Notification implements ShouldQu
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['database', 'mail'];
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        $review = CalendarChangeReview::with(['event', 'connection'])->find($this->reviewId);
+        $title = $review?->event?->title ?: 'Cambio en Google Calendar';
+
+        return [
+            'campaign_id' => $review?->campaign_id,
+            'title' => 'Cambio de Google Calendar pendiente',
+            'message' => $title.' requiere revisión de Agenda.',
+            'href' => '/calendar/reviews?status=pending',
+            'category' => 'calendar',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

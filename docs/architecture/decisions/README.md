@@ -27,3 +27,4 @@ decisión; no sustituye migraciones, pruebas ni procedimientos operativos.
 | ADR | Título | Estado |
 |---|---|---|
 | [TERR-ADR-0001](TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md) | Alcance autorizado y consistencia multicampaña | Accepted |
+| [TERR-ADR-0002](TERR-ADR-0002-seguimiento-durable-google-calendar.md) | Seguimiento durable de Google Calendar | Accepted |

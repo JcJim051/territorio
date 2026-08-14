@@ -1,0 +1,35 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review.devops
+correlation_id: territorio-google-calendar-sync-review-20260803
+parent_task_id: territorio.google-calendar-sync.review
+state: completed
+objective: Evaluar preparacion operativa, colas, migracion, observabilidad y reversion del incremento.
+scope:
+  includes:
+    - Compatibilidad y drenaje de jobs, workers, scheduler, locks y retries.
+    - Orden seguro de migracion y reversion sin despliegue.
+    - Monitoreo, recuperacion de runs y criterios de readiness.
+  excludes:
+    - Desplegar, reiniciar servicios, mutar colas o modificar configuracion.
+capability:
+  id: deployment.readiness.assessment
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.devops
+  agent_id: gc-devops
+governance:
+  profile: supervised
+  authority_refs: [gravity-core.owner, TERR-ADR-0002]
+  approval_gate_refs: [gate.material-action, gate.release]
+constraints:
+  - Solo evaluacion local de lectura; no operar servicios ni colas.
+context_refs:
+  - {id: context.repository, type: source.repository, locator: /Applications/XAMPP/xamppfiles/htdocs/territorio}
+  - {id: context.adr, type: decision.record, locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md}
+  - {id: context.architecture, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/architecture.yaml}
+expected_outputs:
+  - Result Envelope con readiness, rollback, observabilidad y bloqueos.
+acceptance_criteria:
+  - {id: criterion.readiness, statement: "Workers, scheduler, locks, retries y payloads tienen ruta operacional segura."}
+  - {id: criterion.rollback, statement: "La reversion separa aplicacion, cola, restricciones y datos sin desplegar."}
+classification: internal

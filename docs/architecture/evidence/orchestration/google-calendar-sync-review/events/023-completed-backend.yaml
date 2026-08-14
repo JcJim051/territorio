@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.023
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 23
+previous_event_id: event.google-calendar-review.022
+occurred_at: "2026-08-03T21:42:20Z"
+event_type: task_completed
+actor: {type: agent, ref: gc-backend}
+subject: {task_id: territorio.google-calendar-sync.review.backend}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.backend-result, type: result.envelope, locator: results/backend.yaml}
+details:
+  from_state: in_progress
+  to_state: completed
+  reason: GC-Backend confirmo defectos y preparo correccion minima reversible sin implementarla.

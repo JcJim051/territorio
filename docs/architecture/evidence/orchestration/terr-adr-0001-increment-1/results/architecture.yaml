@@ -1,0 +1,89 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.architecture
+classification: internal
+state: completed
+summary: La revision confirmo que el piloto es implementable mediante cinco FK compuestas PostgreSQL, un contexto de ejecucion tipado y endurecimiento de los jobs de calendario, sin resolver politicas pendientes ni ampliar el alcance.
+artifacts: []
+evidence_refs:
+  - id: adr.terr-0001
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: evidence.preflight
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md
+  - id: evidence.docker
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-docker-reproducibility.md
+  - id: schema.campaign-core
+    type: source.repository
+    locator: database/migrations/2026_07_23_000100_create_campaign_core_tables.php
+  - id: schema.territorial
+    type: source.repository
+    locator: database/migrations/2026_07_23_000200_create_territorial_tables.php
+  - id: schema.operations
+    type: source.repository
+    locator: database/migrations/2026_07_23_000300_create_operations_tables.php
+  - id: schema.calendar
+    type: source.repository
+    locator: database/migrations/2026_07_24_010000_create_google_calendar_tables.php
+  - id: code.current-campaign
+    type: source.repository
+    locator: app/Support/CurrentCampaign.php
+  - id: code.campaign-middleware
+    type: source.repository
+    locator: app/Http/Middleware/ResolveCurrentCampaign.php
+  - id: code.calendar-sync
+    type: source.repository
+    locator: app/Services/GoogleCalendarSync.php
+  - id: code.calendar-publisher
+    type: source.repository
+    locator: app/Services/GoogleCalendarPublisher.php
+  - id: code.calendar-jobs
+    type: source.repository
+    locator: app/Jobs
+  - id: tests.current-isolation
+    type: test.evidence
+    locator: tests/Feature/CampaignIsolationTest.php
+  - id: tests.current-calendar
+    type: test.evidence
+    locator: tests/Feature/GoogleCalendarIntegrationTest.php
+verifications:
+  - criterion_id: criterion.evidence
+    status: pass
+    evidence_refs:
+      - adr.terr-0001
+      - evidence.preflight
+      - schema.campaign-core
+      - schema.territorial
+      - schema.operations
+      - schema.calendar
+      - code.current-campaign
+      - code.calendar-sync
+      - code.calendar-jobs
+  - criterion_id: criterion.scope
+    status: pass
+    evidence_refs:
+      - adr.terr-0001
+      - evidence.preflight
+  - criterion_id: criterion.reversibility
+    status: pass
+    evidence_refs:
+      - adr.terr-0001
+      - schema.campaign-core
+      - schema.operations
+      - schema.calendar
+effects:
+  - No se modificaron archivos, esquema ni datos.
+  - No se ejecutaron despliegues ni servicios externos.
+  - Se formulo una correccion minima limitada a las tres relaciones piloto y su soporte de contexto imprescindible.
+limitations:
+  - No se ejecutaron pruebas porque la tarea exigia no modificar datos, incluso en un laboratorio.
+  - El preflight disponible usa semillas sinteticas y tiene tablas vacias para asistencia y calendario.
+  - La semantica DDL propuesta debe comprobarse en el laboratorio PostgreSQL 16 antes de aplicarse.
+uncertainty:
+  - La politica de usuarios normales con varias membresias continua pendiente.
+  - La autoridad para emitir alcance organizacional o global continua pendiente.
+  - Se desconoce si un destino posterior contendra relaciones cruzadas; debera ejecutarse alli el preflight autorizado.
+responsibility:
+  current: gc-architect
+  recipient: gc-orchestrator

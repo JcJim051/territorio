@@ -1,0 +1,34 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review.data
+correlation_id: territorio-google-calendar-sync-review-20260803
+parent_task_id: territorio.google-calendar-sync.review
+state: completed
+objective: Revisar el modelo calendar_sync_runs y sus invariantes multicampana y de ciclo de vida.
+scope:
+  includes:
+    - DDL, nulabilidad, claves, indices, eliminacion, deduplicacion y retencion.
+    - Consistencia campana-conexion-ejecucion en SQLite y PostgreSQL.
+    - Reversion y compatibilidad con datos existentes.
+  excludes:
+    - Modificar migraciones, esquema o datos.
+capability:
+  id: data.isolation.assessment
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.data
+  agent_id: gc-data
+governance:
+  profile: supervised
+  authority_refs: [gravity-core.owner, TERR-ADR-0002, TERR-ADR-0001]
+  approval_gate_refs: [gate.material-action]
+constraints:
+  - Solo lectura; no ejecutar migraciones ni mutaciones.
+context_refs:
+  - {id: context.repository, type: source.repository, locator: /Applications/XAMPP/xamppfiles/htdocs/territorio}
+  - {id: context.adr, type: decision.record, locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md}
+expected_outputs:
+  - Result Envelope con integridad, aislamiento, retencion y reversion evaluados.
+acceptance_criteria:
+  - {id: criterion.integrity, statement: "Las relaciones y restricciones preservan pertenencia comun de campana."}
+  - {id: criterion.lifecycle, statement: "Estados, deduplicacion, eliminacion y reversion tienen comportamiento definido."}
+classification: internal

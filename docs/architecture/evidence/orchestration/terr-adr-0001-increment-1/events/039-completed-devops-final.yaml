@@ -1,0 +1,24 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.039
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 39
+previous_event_id: event.terr-adr-0001.inc1.038
+occurred_at: "2026-08-03T15:47:55Z"
+event_type: task_completed
+actor:
+  type: agent
+  ref: gc-devops
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.devops-final
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.result
+    type: result.envelope
+    locator: results/devops-final.yaml
+details:
+  from_state: in_progress
+  to_state: completed
+  reason: DevOps incorporo la evidencia QA final, confirmo implementacion local verificada y mantuvo gate.release cerrado.

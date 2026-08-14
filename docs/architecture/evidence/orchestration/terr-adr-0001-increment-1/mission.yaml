@@ -1,0 +1,64 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+state: completed
+objective: Coordinar la propuesta, implementacion condicionada y verificacion del primer incremento piloto de aislamiento multicampana aprobado en TERR-ADR-0001.
+scope:
+  includes:
+    - Revision independiente inicial de Arquitectura, Datos y Seguridad sobre las garantias del alcance piloto.
+    - Propuesta implementable limitada a membresia-rol, asistencia-reunion-persona y evento-conexion-reunion, incluido el contexto autorizado estrictamente necesario para el piloto.
+    - Implementacion por Backend, verificacion por QA y evaluacion de preparacion y reversion por DevOps solo despues del gate material humano.
+  excludes:
+    - Produccion, despliegues, promociones y servicios externos.
+    - Datos reales, secretos, credenciales y pruebas intrusivas.
+    - RLS, politicas de usuarios multicampana, recursos compartidos y refactorizaciones ajenas al piloto.
+capability:
+  id: organization.mission-orchestration
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.orchestration
+  agent_id: gc-orchestrator
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+  approval_gate_refs:
+    - gate.task-acceptance
+    - gate.material-action
+    - gate.release
+constraints:
+  - No modificar codigo, esquema ni datos antes de aprobacion humana explicita de la propuesta consolidada.
+  - Trabajar exclusivamente en el repositorio Territorio y usar solo datos sinteticos o laboratorios desechables.
+  - Conservar como pendientes las decisiones de producto no resueltas por TERR-ADR-0001.
+  - No desplegar en produccion ni ampliar el alcance a otros hallazgos.
+context_refs:
+  - id: context.composition
+    type: organization.composition
+    locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio@d5452b0ad1295315920477f1cf1bc025be0a9e1d
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: context.preflight
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md
+  - id: context.docker
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-docker-reproducibility.md
+expected_outputs:
+  - Tareas, eventos, resultados, evidencias y gates trazables.
+  - Propuesta consolidada con cambios, migraciones, riesgos, reversion, pruebas y archivos posiblemente afectados.
+  - Solicitud de aprobacion humana previa a cualquier efecto material.
+acceptance_criteria:
+  - id: criterion.scope
+    statement: Toda tarea y resultado permanece dentro del alcance piloto de TERR-ADR-0001.
+  - id: criterion.trace
+    statement: Routing, aceptacion, inicio, resultado y gate quedan correlacionados y persistidos.
+  - id: criterion.specialists
+    statement: Arquitectura, Datos y Seguridad revisan independientemente antes de consolidar la propuesta.
+  - id: criterion.material-gate
+    statement: No se modifica codigo, esquema ni datos antes de una aprobacion humana explicita.
+classification: internal

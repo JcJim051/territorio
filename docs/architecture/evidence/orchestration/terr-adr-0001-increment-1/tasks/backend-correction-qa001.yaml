@@ -1,0 +1,60 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.backend-qa001
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1.backend
+state: completed
+objective: Corregir exclusivamente QA-001 para que el outbox pueda ejecutarse legitimamente con cola sync bajo el contexto HTTP de la misma campana sin debilitar el rechazo de contextos incompatibles.
+scope:
+  includes:
+    - Composicion segura del contexto ya autorizado de la misma campana durante ProcessCalendarOutbox ejecutado sincronicamente.
+    - Conservacion del rechazo de campanas o decisiones incompatibles y limpieza del contexto.
+    - Prueba de regresion del flujo de aprobacion que actualmente responde 500 y pruebas negativas relacionadas.
+  excludes:
+    - Cambios a DDL, migraciones, otras relaciones, colas en general o compatibilidad operativa de jobs historicos.
+    - RLS, decisiones pendientes, produccion, despliegues, datos reales y servicios externos.
+    - Cualquier otro hallazgo de QA o DevOps.
+capability:
+  id: software.backend.defect-correction
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.backend
+  agent_id: gc-backend
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+    - gate.material-action:approved
+  approval_gate_refs:
+    - gate.material-action
+    - gate.release
+constraints:
+  - Corregir solo QA-001 y no ocultar el fallo modificando o eliminando la prueba existente.
+  - No permitir anidamiento de otra campana ni convertir coincidencia de ID o source en autoridad.
+  - No desplegar, usar datos reales, invocar Google ni modificar bases persistentes.
+  - Entregar a QA para revalidacion independiente.
+context_refs:
+  - id: context.qa-result
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/qa.yaml
+  - id: context.backend-result
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/backend.yaml
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio
+expected_outputs:
+  - Correccion minima de QA-001 y pruebas automatizadas sin cambios de alcance.
+  - Result Envelope valido con evidencia y responsabilidad gc-backend hacia gc-orchestrator.
+acceptance_criteria:
+  - id: criterion.sync-flow
+    statement: Aprobar una reunion con cola sync no responde 500 y el outbox conserva su semantica esperada.
+  - id: criterion.isolation
+    statement: Un contexto de otra campana o incompatible continua siendo rechazado y source no concede autoridad.
+  - id: criterion.cleanup
+    statement: El contexto permanece correcto durante la composicion legitima y se limpia al terminar la unidad propietaria.
+  - id: criterion.regression
+    statement: La reproduccion QA-001, pruebas especificas y regresion aplicable pasan sin editar la expectativa para ocultar el defecto.
+  - id: criterion.scope
+    statement: No se modifican migraciones ni componentes ajenos a QA-001.
+classification: internal

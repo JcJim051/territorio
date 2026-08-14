@@ -57,7 +57,7 @@ class MeetingChangeRequestController extends Controller
             $outbox->meetingUpsert($change->meeting->fresh());
             Audit::record('meeting.change_approved', $change, ['status' => 'approved'], campaign: $current->campaign);
         });
-        ProcessCalendarOutbox::dispatch();
+        ProcessCalendarOutbox::dispatch((int) $change->campaign_id);
 
         return back()->with('success', 'El nuevo horario fue aprobado y se actualizará en Google Calendar.');
     }

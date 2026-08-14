@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.031
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 31
+previous_event_id: event.google-calendar-review.030
+occurred_at: "2026-08-04T14:33:32Z"
+event_type: task_completed
+actor: {type: agent, ref: gc-backend}
+subject: {task_id: territorio.google-calendar-sync.review.backend-implementation}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002, gate.material-action:approved]
+evidence_refs:
+  - {id: evidence.backend-implementation-result, type: result.envelope, locator: results/backend-implementation.yaml}
+details:
+  from_state: in_progress
+  to_state: completed
+  reason: GC-Backend entregó implementación y evidencia; la integridad PostgreSQL queda no evaluada hasta disponer de laboratorio sintético.

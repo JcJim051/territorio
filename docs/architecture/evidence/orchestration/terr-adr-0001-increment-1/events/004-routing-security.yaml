@@ -1,0 +1,25 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.004
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 4
+previous_event_id: event.terr-adr-0001.inc1.003
+occurred_at: "2026-08-03T13:44:05Z"
+event_type: routing_decided
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.security
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.composition
+    type: organization.composition
+    locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml
+details:
+  capability: security.control-assessment
+  position_id: position.security
+  agent_id: gc-security
+  reason: La composicion asigna de forma explicita security.control-assessment a position.security.

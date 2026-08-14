@@ -1,0 +1,20 @@
+event_schema: "1"
+id: event.google-calendar-review.026
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 26
+previous_event_id: event.google-calendar-review.025
+occurred_at: "2026-08-03T21:44:03Z"
+event_type: gate_requested
+actor: {type: agent, ref: gc-orchestrator}
+subject:
+  task_id: territorio.google-calendar-sync.review
+  gate_id: gate.material-action
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.proposal, type: decision.record, locator: reports/propuesta-correccion.md}
+  - {id: evidence.qa, type: result.envelope, locator: results/qa.yaml}
+  - {id: evidence.backend, type: result.envelope, locator: results/backend.yaml}
+  - {id: evidence.devops, type: result.envelope, locator: results/devops.yaml}
+details:
+  reason: Los seis especialistas completaron la revision; cuatro bloqueos reproducidos requieren una correccion material nueva antes de aceptar el incremento.

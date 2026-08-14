@@ -1,0 +1,36 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review.backend
+correlation_id: territorio-google-calendar-sync-review-20260803
+parent_task_id: territorio.google-calendar-sync.review
+state: completed
+objective: Evaluar la implementabilidad y correccion minima de los defectos reportados, sin modificar el proyecto.
+scope:
+  includes:
+    - Verificar en codigo los P1 y P2 de Arquitectura, Datos y Seguridad.
+    - Proponer cambios backend y migraciones minimos, ordenados y reversibles.
+    - Identificar archivos, contratos y pruebas afectados.
+  excludes:
+    - Implementar correcciones, modificar archivos o ampliar funcionalidad.
+capability:
+  id: software.backend.defect-correction
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.backend
+  agent_id: gc-backend
+governance:
+  profile: supervised
+  authority_refs: [gravity-core.owner, TERR-ADR-0002]
+  approval_gate_refs: [gate.material-action]
+constraints:
+  - Esta tarea termina en propuesta; el gate material sigue pendiente.
+context_refs:
+  - {id: context.repository, type: source.repository, locator: /Applications/XAMPP/xamppfiles/htdocs/territorio}
+  - {id: context.architecture, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/architecture.yaml}
+  - {id: context.data, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/data.yaml}
+  - {id: context.security, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/security.yaml}
+expected_outputs:
+  - Result Envelope con correccion minima, archivos, migraciones, pruebas y reversion.
+acceptance_criteria:
+  - {id: criterion.reproducibility, statement: "Cada defecto aceptado se verifica contra codigo y tiene una correccion concreta."}
+  - {id: criterion.reversibility, statement: "La propuesta separa aplicacion, jobs, restricciones y datos."}
+classification: internal

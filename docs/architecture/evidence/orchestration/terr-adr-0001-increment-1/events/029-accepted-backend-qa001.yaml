@@ -1,0 +1,26 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.029
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 29
+previous_event_id: event.terr-adr-0001.inc1.028
+occurred_at: "2026-08-03T15:38:42Z"
+event_type: task_accepted
+actor:
+  type: agent
+  ref: gc-backend
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.backend-qa001
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+  - gate.material-action:approved
+evidence_refs:
+  - id: evidence.acceptance-backend
+    type: task.context
+    locator: codex-agent-message:/root/backend_implementation
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: GC-Backend acepto corregir solo QA-001 preservando aislamiento y sin modificar migraciones.

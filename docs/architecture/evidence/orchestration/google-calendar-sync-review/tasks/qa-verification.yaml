@@ -1,0 +1,34 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review.qa
+correlation_id: territorio-google-calendar-sync-review-20260803
+parent_task_id: territorio.google-calendar-sync.review
+state: failed
+objective: Verificar independientemente el incremento y reproducir sus riesgos sin corregir codigo productivo.
+scope:
+  includes:
+    - Suite aplicable y pruebas read-only o sobre bases sinteticas desechables.
+    - Compatibilidad de payloads legados, starvation multicampana y estados falsos.
+    - Aislamiento de runs, reconexion, deduplicacion y UX compilable.
+  excludes:
+    - Corregir codigo, llamar Google, usar datos reales o autorizar release.
+capability:
+  id: quality.verification
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.quality
+  agent_id: gc-qa
+governance:
+  profile: supervised
+  authority_refs: [gravity-core.owner, TERR-ADR-0002]
+  approval_gate_refs: [gate.material-action, gate.release]
+constraints:
+  - Toda prueba debe ser local, sintetica y no destructiva.
+context_refs:
+  - {id: context.repository, type: source.repository, locator: /Applications/XAMPP/xamppfiles/htdocs/territorio}
+  - {id: context.adr, type: decision.record, locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md}
+expected_outputs:
+  - Result Envelope pass, fail o blocked con comandos y evidencia reproducible.
+acceptance_criteria:
+  - {id: criterion.behavior, statement: "El comportamiento nominal y los fallos identificados se verifican de forma independiente."}
+  - {id: criterion.regression, statement: "Suite y compilacion aplicables se ejecutan sin ocultar limitaciones ambientales."}
+classification: internal

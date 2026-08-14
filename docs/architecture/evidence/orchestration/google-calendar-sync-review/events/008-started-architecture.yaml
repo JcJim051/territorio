@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.008
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 8
+previous_event_id: event.google-calendar-review.007
+occurred_at: "2026-08-03T21:26:04Z"
+event_type: task_started
+actor: {type: agent, ref: gc-orchestrator}
+subject: {task_id: territorio.google-calendar-sync.review.architecture}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.architecture-accepted-event, type: orchestration.event, locator: events/005-accepted-architecture.yaml}
+details:
+  from_state: accepted
+  to_state: in_progress
+  reason: Routing y aceptacion son validos; la revision arquitectonica puede iniciar.

@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.012
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 12
+previous_event_id: event.google-calendar-review.011
+occurred_at: "2026-08-03T21:31:07Z"
+event_type: task_completed
+actor: {type: agent, ref: gc-data}
+subject: {task_id: territorio.google-calendar-sync.review.data}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002, TERR-ADR-0001]
+evidence_refs:
+  - {id: evidence.data-result, type: result.envelope, locator: results/data.yaml}
+details:
+  from_state: in_progress
+  to_state: completed
+  reason: GC-Data completo revision de solo lectura y califico integridad y ciclo de vida como fail.

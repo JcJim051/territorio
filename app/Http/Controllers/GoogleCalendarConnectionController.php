@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ProcessCalendarOutbox;
-use App\Jobs\SyncGoogleCalendarConnection;
 use App\Models\CalendarConnection;
+use App\Models\CalendarSyncRun;
 use App\Models\CampaignServiceCredential;
 use App\Models\Meeting;
 use App\Services\CalendarOutbox;
+use App\Services\CalendarSyncDispatcher;
 use App\Services\GoogleCalendarClientFactory;
+use App\Services\GoogleCalendarFailureClassifier;
 use App\Support\Audit;
 use App\Support\CurrentCampaign;
 use Google\Service\Calendar;
@@ -17,15 +19,19 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class GoogleCalendarConnectionController extends Controller
 {
-    public function index(Request $request, CurrentCampaign $current, GoogleCalendarClientFactory $factory): Response
-    {
+    public function index(
+        Request $request,
+        CurrentCampaign $current,
+        GoogleCalendarClientFactory $factory,
+        GoogleCalendarFailureClassifier $failureClassifier,
+    ): Response {
         abort_unless(
             $current->membership->can('calendar.connections.manage') || $current->membership->can('calendar.sync.view'),
             403,
@@ -39,7 +45,12 @@ class GoogleCalendarConnectionController extends Controller
             try {
                 $calendars = $this->availableCalendars($connection, $factory);
             } catch (\Throwable $exception) {
-                $connection->update(['last_error' => Str::limit($exception->getMessage(), 4000)]);
+                $failure = $failureClassifier->classify($exception);
+                if ($failure->requiresReconnect) {
+                    $connection->markReconnectRequired();
+                } else {
+                    $connection->update(['last_error' => $failure->safeMessage]);
+                }
             }
         }
 
@@ -72,6 +83,13 @@ class GoogleCalendarConnectionController extends Controller
                 'viewSync' => $current->membership->can('calendar.sync.view'),
                 'configureServices' => $current->membership->can('integrations.manage'),
             ],
+            'syncRuns' => CalendarSyncRun::query()
+                ->where('campaign_id', $current->campaign->id)
+                ->when($connection, fn ($query) => $query->where('calendar_connection_id', $connection->id))
+                ->latest('id')
+                ->limit(10)
+                ->get()
+                ->map(fn (CalendarSyncRun $run) => $this->syncRunPayload($run)),
         ]);
     }
 
@@ -164,8 +182,12 @@ class GoogleCalendarConnectionController extends Controller
         return redirect()->away($client->createAuthUrl());
     }
 
-    public function callback(Request $request, CurrentCampaign $current, GoogleCalendarClientFactory $factory): RedirectResponse
-    {
+    public function callback(
+        Request $request,
+        CurrentCampaign $current,
+        GoogleCalendarClientFactory $factory,
+        GoogleCalendarFailureClassifier $failureClassifier,
+    ): RedirectResponse {
         $current->authorize('calendar.connections.manage');
         $oauth = $request->session()->pull('google_calendar_oauth');
         abort_unless(
@@ -185,7 +207,8 @@ class GoogleCalendarConnectionController extends Controller
         $client = $factory->client(campaign: $current->campaign);
         $token = $client->fetchAccessTokenWithAuthCode($request->string('code')->toString());
         if (isset($token['error'])) {
-            throw ValidationException::withMessages(['google' => $token['error_description'] ?? $token['error']]);
+            $failure = $failureClassifier->classifyTokenResponse($token);
+            throw ValidationException::withMessages(['google' => $failure->safeMessage]);
         }
         $client->setAccessToken($token);
         $profile = (new Oauth2($client))->userinfo->get();
@@ -215,8 +238,13 @@ class GoogleCalendarConnectionController extends Controller
             ->with('success', 'Cuenta vinculada. Selecciona el calendario del candidato.');
     }
 
-    public function select(Request $request, CurrentCampaign $current, GoogleCalendarClientFactory $factory, CalendarOutbox $outbox): RedirectResponse
-    {
+    public function select(
+        Request $request,
+        CurrentCampaign $current,
+        GoogleCalendarClientFactory $factory,
+        CalendarOutbox $outbox,
+        CalendarSyncDispatcher $syncDispatcher,
+    ): RedirectResponse {
         $current->authorize('calendar.connections.manage');
         $data = $request->validate(['calendar_id' => ['required', 'string', 'max:1024']]);
         $connection = CalendarConnection::where('campaign_id', $current->campaign->id)->firstOrFail();
@@ -241,20 +269,25 @@ class GoogleCalendarConnectionController extends Controller
                 ->get()
                 ->each(fn (Meeting $meeting) => $outbox->meetingUpsert($meeting));
         });
-        SyncGoogleCalendarConnection::dispatch($connection->id, true);
-        ProcessCalendarOutbox::dispatch();
+        $syncDispatcher->dispatch($connection->fresh(), 'calendar_selected', $request->user()->id, true);
+        ProcessCalendarOutbox::dispatch((int) $current->campaign->id);
         Audit::record('calendar.selected', $connection, ['calendar' => $calendar['name']], campaign: $current->campaign);
 
         return back()->with('success', 'Calendario activado. La sincronización inicial está en curso.');
     }
 
-    public function sync(CurrentCampaign $current): RedirectResponse
+    public function sync(Request $request, CurrentCampaign $current, CalendarSyncDispatcher $syncDispatcher): RedirectResponse
     {
         $current->authorize('calendar.connections.manage');
         $connection = CalendarConnection::where('campaign_id', $current->campaign->id)->where('status', 'active')->firstOrFail();
-        SyncGoogleCalendarConnection::dispatch($connection->id);
+        $run = $syncDispatcher->dispatch($connection, 'manual', $request->user()->id);
 
-        return back()->with('success', 'Sincronización encolada.');
+        return back()->with(
+            'success',
+            $run->wasRecentlyCreated
+                ? 'Sincronización encolada. Verás aquí su resultado.'
+                : 'Ya existe una sincronización en curso para este calendario.',
+        );
     }
 
     public function disconnect(CurrentCampaign $current, GoogleCalendarClientFactory $factory): RedirectResponse
@@ -306,5 +339,20 @@ class GoogleCalendarConnectionController extends Controller
         } while ($pageToken);
 
         return $items;
+    }
+
+    private function syncRunPayload(CalendarSyncRun $run): array
+    {
+        return [
+            'id' => $run->public_id,
+            'trigger' => $run->trigger,
+            'status' => $run->status,
+            'counts' => $run->counts,
+            'errorCode' => $run->error_code,
+            'message' => $run->safe_message,
+            'queuedAt' => $run->queued_at?->toIso8601String(),
+            'startedAt' => $run->started_at?->toIso8601String(),
+            'finishedAt' => $run->finished_at?->toIso8601String(),
+        ];
     }
 }

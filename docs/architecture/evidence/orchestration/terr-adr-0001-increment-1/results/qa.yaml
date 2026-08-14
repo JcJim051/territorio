@@ -1,0 +1,79 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.qa
+classification: internal
+state: failed
+summary: >-
+  La integridad PostgreSQL 16, el alcance contractual, las garantias directas
+  del contexto y la compilacion frontend fueron demostrados. La aceptacion
+  falla porque un flujo legitimo HTTP con cola sync intenta ejecutar el outbox
+  bajo un contexto ya activo y responde 500; la regresion completa termino con
+  58 pruebas aprobadas y 1 fallida.
+artifacts:
+  - id: artifact.qa-inline-report
+    type: test.evidence
+    locator: "inline:informe QA independiente de GC-QA"
+  - id: artifact.postgres-suite
+    type: test.source
+    locator: tests/Postgres/TenantIsolationPilotTest.php
+  - id: artifact.context-suite
+    type: test.source
+    locator: tests/Feature/AuthorizedCampaignContextTest.php
+  - id: artifact.regression-failure
+    type: test.source
+    locator: tests/Feature/AdminCrudAndDecisionQueueTest.php
+evidence_refs:
+  - id: evidence.php-specific
+    type: test.evidence
+    locator: "inline:15 tests passed, 97 assertions"
+  - id: evidence.postgresql
+    type: test.evidence
+    locator: "inline:PostgreSQL 16.6 migrate:fresh PASS; 2 tests passed, 20 assertions; 5 constraints and 9 valid indexes verified"
+  - id: evidence.regression
+    type: test.evidence
+    locator: "inline:58 tests passed, 1 failed, 514 assertions"
+  - id: evidence.reproduction
+    type: test.evidence
+    locator: "inline:isolated reproduction failed with UnauthorizedExecutionContext, 8 assertions"
+  - id: evidence.frontend
+    type: test.evidence
+    locator: "inline:npm run build PASS; non-blocking large-chunk warning"
+verifications:
+  - criterion_id: criterion.contract
+    status: pass
+    evidence_refs:
+      - artifact.qa-inline-report
+  - criterion_id: criterion.context
+    status: pass
+    evidence_refs:
+      - evidence.php-specific
+  - criterion_id: criterion.jobs
+    status: fail
+    evidence_refs:
+      - evidence.reproduction
+      - evidence.regression
+  - criterion_id: criterion.database
+    status: pass
+    evidence_refs:
+      - evidence.postgresql
+  - criterion_id: criterion.regression
+    status: fail
+    evidence_refs:
+      - evidence.regression
+      - evidence.frontend
+effects:
+  - Las cinco relaciones piloto fueron demostradas en PostgreSQL 16.6.
+  - El flujo de aprobacion de reuniones falla con cola sync por anidamiento de contexto.
+  - No se modifico codigo productivo, migraciones ni pruebas durante QA.
+  - No se realizo despliegue ni se invocaron servicios externos.
+  - El laboratorio temporal fue probado, pero su apagado y limpieza no quedaron confirmados tras abortarse el intento.
+limitations:
+  - No se verifico produccion ni se autoriza release.
+  - El defecto fue reproducido con cola sync; su probabilidad bajo workers separados no fue medida.
+  - No se evaluaron relaciones fuera del piloto.
+  - No se confirmo la eliminacion del laboratorio temporal.
+uncertainty:
+  - Debe definirse como componer de forma segura una ejecucion legitima de la misma campana cuando una cola corre sincronicamente dentro de HTTP.
+  - La advertencia de tamano de chunks del build existia fuera del objetivo y no se trato como defecto del incremento.
+responsibility:
+  current: gc-qa
+  recipient: gc-orchestrator

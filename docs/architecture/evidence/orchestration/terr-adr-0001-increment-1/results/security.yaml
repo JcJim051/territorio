@@ -1,0 +1,103 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.security
+classification: internal
+state: completed
+summary: >-
+  Revision no destructiva completada sobre las tres relaciones piloto, el contexto
+  autorizado y los jobs de calendario. Se confirmaron riesgos de escalamiento por
+  rol cruzado, mezcla persistente de asistencia, asociaciones externas cruzadas y
+  ejecucion asincrona basada solo en identificadores. Se definieron controles
+  minimos, pruebas negativas y criterios de bloqueo sin aceptar riesgos ni ampliar
+  el alcance.
+artifacts: []
+evidence_refs:
+  - id: evidence.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: evidence.preflight
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md
+  - id: evidence.preflight-query
+    type: source.sql
+    locator: database/preflight/tenant-isolation-pilot.sql
+  - id: evidence.membership-schema
+    type: schema.migration
+    locator: database/migrations/2026_07_23_000100_create_campaign_core_tables.php:39
+  - id: evidence.attendance-schema
+    type: schema.migration
+    locator: database/migrations/2026_07_23_000300_create_operations_tables.php:51
+  - id: evidence.calendar-schema
+    type: schema.migration
+    locator: database/migrations/2026_07_24_010000_create_google_calendar_tables.php:11
+  - id: evidence.membership-authorization
+    type: source.code
+    locator: app/Models/CampaignMembership.php:31
+  - id: evidence.http-context
+    type: source.code
+    locator: app/Http/Middleware/ResolveCurrentCampaign.php:24
+  - id: evidence.current-campaign
+    type: source.code
+    locator: app/Support/CurrentCampaign.php:9
+  - id: evidence.outbox-job
+    type: source.code
+    locator: app/Jobs/ProcessCalendarOutbox.php:20
+  - id: evidence.sync-job
+    type: source.code
+    locator: app/Jobs/SyncGoogleCalendarConnection.php:19
+  - id: evidence.rejection-job
+    type: source.code
+    locator: app/Jobs/ApplyCalendarReviewRejection.php:21
+  - id: evidence.publisher
+    type: source.code
+    locator: app/Services/GoogleCalendarPublisher.php:17
+  - id: evidence.sync-service
+    type: source.code
+    locator: app/Services/GoogleCalendarSync.php:24
+  - id: evidence.multicampaign-test
+    type: test.source
+    locator: tests/Feature/CampaignIsolationTest.php:65
+verifications:
+  - criterion_id: criterion.evidence
+    status: pass
+    evidence_refs:
+      - evidence.adr
+      - evidence.preflight
+      - evidence.membership-schema
+      - evidence.attendance-schema
+      - evidence.calendar-schema
+      - evidence.membership-authorization
+      - evidence.outbox-job
+      - evidence.sync-job
+      - evidence.rejection-job
+  - criterion_id: criterion.threats
+    status: pass
+    evidence_refs:
+      - evidence.http-context
+      - evidence.current-campaign
+      - evidence.outbox-job
+      - evidence.sync-job
+      - evidence.rejection-job
+      - evidence.publisher
+      - evidence.sync-service
+  - criterion_id: criterion.scope
+    status: pass
+    evidence_refs:
+      - evidence.adr
+      - evidence.preflight-query
+      - evidence.multicampaign-test
+effects:
+  - No se modificaron archivos, codigo, esquema, configuracion ni datos.
+  - No se ejecutaron llamadas a Google Calendar ni comprobaciones sobre datos reales.
+  - No se aceptaron riesgos, excepciones ni decisiones pendientes de producto.
+limitations:
+  - El preflight documentado contiene cero filas de asistencia y calendario.
+  - No se ejecutaron pruebas porque la instruccion prohibe modificar esquema o datos, incluso temporales.
+  - SQLite no puede demostrar la semantica objetivo de PostgreSQL 16.
+  - La revision no cubre relaciones distintas de las tres incluidas en el piloto.
+uncertainty:
+  - Las probabilidades son estimaciones cualitativas basadas en alcanzabilidad, barreras observables y cobertura; no existen metricas de incidentes.
+  - La politica para usuarios normales con varias membresias sigue sin resolverse y no fue inferida.
+  - El DDL exacto y su comportamiento de eliminacion deben validarse en PostgreSQL 16 antes del gate material.
+responsibility:
+  current: gc-security
+  recipient: gc-orchestrator

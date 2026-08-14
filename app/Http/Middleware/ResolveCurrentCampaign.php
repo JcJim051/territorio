@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use App\Models\CampaignMembership;
 use App\Support\CurrentCampaign;
+use App\Support\Tenancy\AuthorizedContextRunner;
+use App\Support\Tenancy\CampaignContextResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +13,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ResolveCurrentCampaign
 {
+    public function __construct(
+        private readonly CampaignContextResolver $resolver,
+        private readonly AuthorizedContextRunner $runner,
+    ) {
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()->is_active === false) {
@@ -40,8 +48,19 @@ class ResolveCurrentCampaign
         $request->session()->put('campaign_id', $membership->campaign_id);
         $membership->forceFill(['last_accessed_at' => now()])->saveQuietly();
 
-        app()->instance(CurrentCampaign::class, new CurrentCampaign($membership->campaign, $membership));
+        $context = $this->resolver->fromMembership($membership);
 
-        return $next($request);
+        return $this->runner->run($context, function () use ($context, $membership, $next, $request) {
+            app()->instance(
+                CurrentCampaign::class,
+                new CurrentCampaign($membership->campaign, $membership, $context),
+            );
+
+            try {
+                return $next($request);
+            } finally {
+                app()->forgetInstance(CurrentCampaign::class);
+            }
+        });
     }
 }

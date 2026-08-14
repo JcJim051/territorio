@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.025
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 25
+previous_event_id: event.google-calendar-review.024
+occurred_at: "2026-08-03T21:44:02Z"
+event_type: task_failed
+actor: {type: agent, ref: gc-qa}
+subject: {task_id: territorio.google-calendar-sync.review.qa}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.qa-result, type: result.envelope, locator: results/qa.yaml}
+details:
+  from_state: in_progress
+  to_state: failed
+  reason: GC-QA reprodujo cuatro defectos funcionales y un fallo de formato; el criterio behavior no pasa.

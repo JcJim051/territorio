@@ -1,0 +1,25 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.005
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 5
+previous_event_id: event.terr-adr-0001.inc1.004
+occurred_at: "2026-08-03T13:46:34Z"
+event_type: task_accepted
+actor:
+  type: agent
+  ref: gc-architect
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.architecture
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.acceptance-architecture
+    type: task.context
+    locator: codex-agent-message:/root/architecture_review
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: GC-Architect confirmo capacidad, alcance piloto y modo solo lectura.

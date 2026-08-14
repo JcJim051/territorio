@@ -146,7 +146,7 @@ class CalendarReviewController extends Controller
             $review->event?->update(['review_status' => 'rejection_pending']);
             Audit::record('calendar.change_rejected', $review, ['status' => 'rejected'], campaign: $current->campaign);
         });
-        ApplyCalendarReviewRejection::dispatch($review->id);
+        ApplyCalendarReviewRejection::dispatch($review->campaign_id, $review->id);
 
         return back()->with('success', 'Rechazo registrado. Google Calendar será restaurado y el bloqueo se liberará al confirmarse.');
     }

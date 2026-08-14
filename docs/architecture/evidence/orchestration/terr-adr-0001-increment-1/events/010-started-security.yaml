@@ -1,0 +1,24 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.010
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 10
+previous_event_id: event.terr-adr-0001.inc1.009
+occurred_at: "2026-08-03T13:46:34Z"
+event_type: task_started
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.security
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.accepted-event
+    type: orchestration.event
+    locator: events/007-accepted-security.yaml
+details:
+  from_state: accepted
+  to_state: in_progress
+  reason: Routing y aceptacion validos; la revision de seguridad puede iniciar en paralelo.

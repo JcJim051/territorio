@@ -1,0 +1,34 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.014
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 14
+previous_event_id: event.terr-adr-0001.inc1.013
+occurred_at: "2026-08-03T14:10:42Z"
+event_type: gate_requested
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1
+  gate_id: gate.material-action
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.proposal
+    type: decision.record
+    locator: reports/propuesta-implementable.md
+  - id: evidence.architecture
+    type: result.envelope
+    locator: results/architecture.yaml
+  - id: evidence.data
+    type: result.envelope
+    locator: results/data.yaml
+  - id: evidence.security
+    type: result.envelope
+    locator: results/security.yaml
+details:
+  from_state: accepted
+  to_state: blocked
+  reason: La propuesta consolidada requiere aprobacion humana explicita antes de delegar cualquier cambio de codigo, esquema o datos.

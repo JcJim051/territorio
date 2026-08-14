@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\GoogleCalendarReconnectRequired;
 use App\Models\CalendarConnection;
 use App\Models\Campaign;
 use App\Models\CampaignServiceCredential;
@@ -11,6 +12,8 @@ use RuntimeException;
 
 class GoogleCalendarClientFactory
 {
+    public function __construct(private readonly GoogleCalendarFailureClassifier $failureClassifier) {}
+
     public function client(?CalendarConnection $connection = null, ?Campaign $campaign = null): Client
     {
         $campaignId = $connection?->campaign_id ?: $campaign?->id;
@@ -19,7 +22,7 @@ class GoogleCalendarClientFactory
         }
         $configuration = $this->configurationForCampaign($campaignId);
         $credentials = $configuration->credentials;
-        $client = new Client();
+        $client = new Client;
         $client->setClientId((string) ($credentials['client_id'] ?? ''));
         $client->setClientSecret((string) ($credentials['client_secret'] ?? ''));
         $client->setRedirectUri((string) ($configuration->settings['redirect_uri'] ?? ''));
@@ -37,11 +40,16 @@ class GoogleCalendarClientFactory
             $client->setAccessToken($connection->access_token);
             if ($client->isAccessTokenExpired()) {
                 if (! $connection->refresh_token) {
-                    throw new RuntimeException('Google revocó la sesión. Es necesario volver a vincular la cuenta.');
+                    $this->requireReconnect($connection);
                 }
                 $token = $client->fetchAccessTokenWithRefreshToken($connection->refresh_token);
                 if (isset($token['error'])) {
-                    throw new RuntimeException($token['error_description'] ?? $token['error']);
+                    $failure = $this->failureClassifier->classifyTokenResponse($token);
+                    if ($failure->requiresReconnect) {
+                        $this->requireReconnect($connection);
+                    }
+
+                    throw $this->failureClassifier->safeException($failure);
                 }
                 $connection->forceFill([
                     'access_token' => $token,
@@ -52,6 +60,13 @@ class GoogleCalendarClientFactory
         }
 
         return $client;
+    }
+
+    private function requireReconnect(CalendarConnection $connection): never
+    {
+        $connection->markReconnectRequired();
+
+        throw new GoogleCalendarReconnectRequired('Google revocó la autorización. Vuelve a vincular la cuenta.');
     }
 
     public function service(CalendarConnection $connection): Calendar

@@ -2,19 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessCalendarOutbox;
+use App\Models\CalendarConnection;
+use App\Models\ExternalCalendarEvent;
+use App\Models\IntegrationMapping;
 use App\Models\Meeting;
 use App\Models\MeetingChangeRequest;
-use App\Models\ExternalCalendarEvent;
-use App\Models\CalendarConnection;
 use App\Models\OutboxEvent;
 use App\Models\Person;
 use App\Models\TerritoryUnit;
-use App\Support\Audit;
-use App\Support\CurrentCampaign;
+use App\Notifications\CampaignActivityNotification;
 use App\Services\CalendarConflictService;
 use App\Services\CalendarOutbox;
 use App\Services\MeetingResourceService;
-use App\Jobs\ProcessCalendarOutbox;
+use App\Support\Audit;
+use App\Support\CampaignNotifier;
+use App\Support\CurrentCampaign;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
@@ -47,6 +50,10 @@ class MeetingController extends Controller
                 'leader:id,name',
                 'territory:id,name',
                 'requirements.resource',
+                'calendarEvents' => fn ($query) => $query
+                    ->where('campaign_id', $campaignId)
+                    ->where('origin', 'platform')
+                    ->latest('id'),
                 'changeRequests' => fn ($query) => $query->where('status', 'pending')->latest(),
             ])
             ->where('campaign_id', $campaignId)
@@ -80,10 +87,17 @@ class MeetingController extends Controller
             ->get()
             ->unique('aggregate_id')
             ->keyBy('aggregate_id');
+        $calendarMappings = IntegrationMapping::query()
+            ->where('campaign_id', $campaignId)
+            ->where('system', 'google_calendar')
+            ->where('entity_type', 'meeting')
+            ->whereIn('local_id', $calendarMeetings->pluck('id')->map(fn ($id) => (string) $id))
+            ->get()
+            ->keyBy('local_id');
 
         return Inertia::render('Meetings/Index', [
             'meetings' => $calendarMeetings
-                ->map(function (Meeting $meeting) use ($calendarMeetings, $externalEvents, $connection, $latestOutbox, $meetingResources) {
+                ->map(function (Meeting $meeting) use ($calendarMeetings, $calendarMappings, $externalEvents, $connection, $latestOutbox, $meetingResources) {
                     $conflicts = $calendarMeetings
                         ->filter(fn (Meeting $other) => $other->id !== $meeting->id
                             && in_array($other->status, ['requested', 'approved', 'conditional'], true)
@@ -116,37 +130,52 @@ class MeetingController extends Controller
 
                     $resourceAnalysis = $meetingResources->analyze($meeting);
 
+                    $mapping = $calendarMappings->get((string) $meeting->id);
+                    $activeGoogleEvent = $mapping
+                        && (string) data_get($mapping->metadata, 'calendar_id') === (string) $connection?->calendar_id
+                        ? $meeting->calendarEvents->firstWhere('external_event_id', $mapping->external_id)
+                        : null;
+
                     return [
-                    'id' => $meeting->public_id,
-                    'title' => $meeting->title,
-                    'type' => $meeting->type,
-                    'objective' => $meeting->objective,
-                    'status' => $meeting->status,
-                    'startsAt' => $meeting->starts_at->format('Y-m-d\TH:i'),
-                    'endsAt' => $meeting->ends_at->format('Y-m-d\TH:i'),
-                    'location' => $meeting->location,
-                    'address' => $meeting->address,
-                    'latitude' => $meeting->latitude,
-                    'longitude' => $meeting->longitude,
-                    'locationNotes' => $meeting->location_notes,
-                    'expectedAttendees' => $meeting->expected_attendees,
-                    'leaderId' => $meeting->leader_person_id,
-                    'territoryId' => $meeting->territory_unit_id,
-                    'leader' => $meeting->leader?->name,
-                    'territory' => $meeting->territory?->name,
-                    'conflicts' => $conflicts,
-                    'hasBlockingConflict' => $conflicts->contains('blocking', true),
-                    'hasPotentialConflict' => $conflicts->isNotEmpty(),
-                    'requirements' => $resourceAnalysis,
-                    'hasResourceBlock' => $resourceAnalysis->contains('shortage', true),
-                    'mobility' => $this->mobilityFor($meeting, $calendarMeetings),
-                    'pendingChange' => ($change = $meeting->changeRequests->first()) ? [
-                        'id' => $change->public_id,
-                        'changes' => $change->proposed_changes,
-                        'createdAt' => $change->created_at->toIso8601String(),
-                    ] : null,
-                    'googleSync' => $this->googleSyncState($meeting, $connection, $latestOutbox->get((string) $meeting->id)),
-                ];
+                        'id' => $meeting->public_id,
+                        'title' => $meeting->title,
+                        'type' => $meeting->type,
+                        'objective' => $meeting->objective,
+                        'status' => $meeting->status,
+                        'startsAt' => $meeting->starts_at->format('Y-m-d\TH:i'),
+                        'endsAt' => $meeting->ends_at->format('Y-m-d\TH:i'),
+                        'location' => $meeting->location,
+                        'address' => $meeting->address,
+                        'latitude' => $meeting->latitude,
+                        'longitude' => $meeting->longitude,
+                        'locationNotes' => $meeting->location_notes,
+                        'expectedAttendees' => $meeting->expected_attendees,
+                        'actualAttendees' => $meeting->actual_attendees,
+                        'outcome' => $meeting->outcome,
+                        'completedAt' => $meeting->completed_at?->toIso8601String(),
+                        'leaderId' => $meeting->leader_person_id,
+                        'territoryId' => $meeting->territory_unit_id,
+                        'leader' => $meeting->leader?->name,
+                        'territory' => $meeting->territory?->name,
+                        'conflicts' => $conflicts,
+                        'hasBlockingConflict' => $conflicts->contains('blocking', true),
+                        'hasPotentialConflict' => $conflicts->isNotEmpty(),
+                        'requirements' => $resourceAnalysis,
+                        'hasResourceBlock' => $resourceAnalysis->contains('shortage', true),
+                        'mobility' => $this->mobilityFor($meeting, $calendarMeetings),
+                        'pendingChange' => ($change = $meeting->changeRequests->first()) ? [
+                            'id' => $change->public_id,
+                            'changes' => $change->proposed_changes,
+                            'createdAt' => $change->created_at->toIso8601String(),
+                        ] : null,
+                        'googleSync' => $this->googleSyncState(
+                            $meeting,
+                            $connection,
+                            $latestOutbox->get((string) $meeting->id),
+                            $mapping,
+                        ),
+                        'googleHtmlLink' => $activeGoogleEvent?->html_link,
+                    ];
                 }),
             'externalEvents' => $externalEvents->map(fn (ExternalCalendarEvent $event) => [
                 'id' => 'google-'.$event->id,
@@ -220,8 +249,7 @@ class MeetingController extends Controller
         CurrentCampaign $current,
         CalendarOutbox $outbox,
         MeetingResourceService $meetingResources,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $current->authorize('meetings.manage');
         $meeting = $this->findMeeting($current, $publicId);
         $data = $this->validatedData($request);
@@ -260,7 +288,7 @@ class MeetingController extends Controller
         Audit::record('meeting.updated', $meeting, $meeting->only(['title', 'starts_at', 'ends_at', 'status', 'location']), $old, $current->campaign);
         if ($meeting->status === 'approved') {
             $outbox->meetingUpsert($meeting);
-            ProcessCalendarOutbox::dispatch();
+            ProcessCalendarOutbox::dispatch((int) $meeting->campaign_id);
         }
 
         return back()->with('success', 'La reunión fue actualizada.');
@@ -297,6 +325,20 @@ class MeetingController extends Controller
         });
 
         Audit::record('meeting.requested', $meeting, ['status' => 'requested'], campaign: $current->campaign);
+        app(CampaignNotifier::class)->notifyPermission(
+            $current->campaign->id,
+            'meetings.approve',
+            new CampaignActivityNotification(
+                $current->campaign->id,
+                'Nueva reunión por revisar',
+                "{$meeting->title} quedó registrada y requiere decisión de Agenda.",
+                '/meetings?status=requested&date='.$meeting->starts_at->format('Y-m-d'),
+                'meeting',
+                true,
+                'Nueva reunión por revisar',
+            ),
+            $request->user()->id,
+        );
 
         return back()->with('success', 'La solicitud de reunión quedó registrada.');
     }
@@ -308,8 +350,7 @@ class MeetingController extends Controller
         CalendarConflictService $conflicts,
         CalendarOutbox $outbox,
         MeetingResourceService $meetingResources,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $current->authorize('meetings.approve');
         $meeting = $this->findMeeting($current, $publicId);
 
@@ -339,8 +380,20 @@ class MeetingController extends Controller
         });
 
         Audit::record('meeting.approved', $meeting, ['status' => 'approved'], $old, $current->campaign);
+        $meeting->load('requester');
+        app(CampaignNotifier::class)->notifyUsers(
+            collect([$meeting->requester]),
+            new CampaignActivityNotification(
+                $current->campaign->id,
+                'Reunión aprobada',
+                "{$meeting->title} fue incorporada a la agenda.",
+                '/meetings?date='.$meeting->starts_at->format('Y-m-d'),
+                'meeting',
+            ),
+            $request->user()->id,
+        );
         $outbox->meetingUpsert($meeting);
-        ProcessCalendarOutbox::dispatch();
+        ProcessCalendarOutbox::dispatch((int) $meeting->campaign_id);
 
         $connected = CalendarConnection::where('campaign_id', $current->campaign->id)
             ->where('status', 'active')
@@ -349,7 +402,7 @@ class MeetingController extends Controller
         return back()->with(
             'success',
             $connected
-                ? 'La reunión fue aprobada y enviada a Google Calendar.'
+                ? 'La reunión fue aprobada. La publicación en Google Calendar está pendiente de confirmación.'
                 : 'La reunión fue aprobada. Se publicará cuando conectes un calendario escribible.',
         );
     }
@@ -359,8 +412,7 @@ class MeetingController extends Controller
         string $publicId,
         CurrentCampaign $current,
         MeetingResourceService $meetingResources,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $current->authorize('meetings.approve');
         $data = $request->validate(['approval_notes' => ['required', 'string', 'max:2000']]);
         $meeting = $this->findMeeting($current, $publicId);
@@ -373,8 +425,71 @@ class MeetingController extends Controller
         ]);
         $meetingResources->reject($meeting);
         Audit::record('meeting.rejected', $meeting, ['status' => 'rejected'], $old, $current->campaign);
+        $meeting->load('requester');
+        app(CampaignNotifier::class)->notifyUsers(
+            collect([$meeting->requester]),
+            new CampaignActivityNotification(
+                $current->campaign->id,
+                'Reunión rechazada',
+                "{$meeting->title} fue rechazada. Motivo: {$data['approval_notes']}",
+                '/meetings?date='.$meeting->starts_at->format('Y-m-d'),
+                'meeting',
+            ),
+            $request->user()->id,
+        );
 
         return back()->with('success', 'La solicitud fue rechazada y quedó auditada.');
+    }
+
+    public function complete(Request $request, string $publicId, CurrentCampaign $current): RedirectResponse
+    {
+        $current->authorize('meetings.manage');
+        $data = $request->validate([
+            'actual_attendees' => ['required', 'integer', 'min:0', 'max:100000'],
+            'outcome' => ['nullable', 'string', 'max:3000'],
+        ]);
+        $meeting = $this->findMeeting($current, $publicId);
+
+        if ($meeting->status === 'completed') {
+            return back()->with('success', 'La reunión ya estaba marcada como realizada.');
+        }
+
+        if ($meeting->status !== 'approved') {
+            throw ValidationException::withMessages([
+                'meeting' => 'Solo una reunión confirmada puede marcarse como realizada.',
+            ]);
+        }
+
+        $old = $meeting->only(['status', 'actual_attendees', 'outcome', 'completed_at']);
+        $meeting->update([
+            'status' => 'completed',
+            'actual_attendees' => $data['actual_attendees'],
+            'outcome' => $data['outcome'] ?? null,
+            'completed_at' => now(),
+            'completed_by' => $request->user()->id,
+        ]);
+
+        Audit::record(
+            'meeting.completed',
+            $meeting,
+            $meeting->only(['status', 'actual_attendees', 'outcome', 'completed_at']),
+            $old,
+            $current->campaign,
+        );
+        app(CampaignNotifier::class)->notifyPermissions(
+            $current->campaign->id,
+            ['analytics.view', 'meetings.approve'],
+            new CampaignActivityNotification(
+                $current->campaign->id,
+                'Reunión realizada',
+                "{$meeting->title} fue marcada como realizada con {$meeting->actual_attendees} asistentes reales.",
+                '/meetings?date='.$meeting->starts_at->format('Y-m-d'),
+                'metrics',
+            ),
+            $request->user()->id,
+        );
+
+        return back()->with('success', 'La reunión fue marcada como realizada.');
     }
 
     public function destroy(
@@ -382,8 +497,7 @@ class MeetingController extends Controller
         CurrentCampaign $current,
         CalendarOutbox $outbox,
         MeetingResourceService $meetingResources,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $current->authorize('meetings.delete');
         $meeting = $this->findMeeting($current, $publicId);
         DB::transaction(function () use ($meeting, $current, $outbox, $meetingResources) {
@@ -392,7 +506,7 @@ class MeetingController extends Controller
             $outbox->meetingDelete($meeting);
             $meeting->delete();
         });
-        ProcessCalendarOutbox::dispatch();
+        ProcessCalendarOutbox::dispatch((int) $meeting->campaign_id);
 
         return back()->with('success', 'La reunión fue eliminada.');
     }
@@ -493,15 +607,25 @@ class MeetingController extends Controller
         ];
     }
 
-    private function googleSyncState(Meeting $meeting, ?CalendarConnection $connection, ?OutboxEvent $outbox): string
-    {
+    private function googleSyncState(
+        Meeting $meeting,
+        ?CalendarConnection $connection,
+        ?OutboxEvent $outbox,
+        ?IntegrationMapping $mapping,
+    ): string {
         if ($meeting->status !== 'approved') {
             return $meeting->status === 'requested' ? 'after_approval' : 'not_applicable';
         }
         if (! $connection?->isReady()) {
             return 'not_connected';
         }
-        if ($meeting->google_event_id) {
+        if (
+            $meeting->google_event_id
+            && $meeting->google_etag
+            && $mapping
+            && (string) $mapping->external_id === (string) $meeting->google_event_id
+            && (string) data_get($mapping->metadata, 'calendar_id') === (string) $connection->calendar_id
+        ) {
             return 'synced';
         }
         if ($outbox?->last_error) {

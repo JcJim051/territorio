@@ -1,0 +1,29 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.020
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 20
+previous_event_id: event.terr-adr-0001.inc1.019
+occurred_at: "2026-08-03T14:59:07Z"
+event_type: routing_decided
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.qa
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+  - gate.material-action:approved
+evidence_refs:
+  - id: evidence.composition
+    type: organization.composition
+    locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml
+  - id: evidence.backend
+    type: result.envelope
+    locator: results/backend.yaml
+details:
+  capability: quality.verification
+  position_id: position.quality
+  agent_id: gc-qa
+  reason: Backend completo la implementacion y la composicion asigna verificacion independiente a position.quality.

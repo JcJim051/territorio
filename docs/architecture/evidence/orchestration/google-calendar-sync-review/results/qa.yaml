@@ -1,0 +1,129 @@
+result_schema: "1"
+task_id: territorio.google-calendar-sync.review.qa
+classification: internal
+state: failed
+summary: >-
+  La suite existente, el camino nominal sintetico, la reconexion sintetica y la
+  compilacion pasan. El resultado global es fail porque tres payloads de jobs
+  previos no sobreviven el cambio de constructor, un evento outbox antiguo con
+  autorizacion revocada detiene deterministicamente eventos posteriores de
+  otras campanas, una ejecucion activa huerfana queda indefinidamente en curso
+  y la base admite runs con campana y conexion de campanas distintas.
+artifacts:
+  - id: artifact.qa-probe
+    type: test.source
+    locator: "/private/tmp/CalendarSyncQaProbeTest.php (sha256 bc0349e692a50defa20869ce98d3ffa002081a80482af045cee1cd251b71be76)"
+  - id: artifact.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md
+evidence_refs:
+  - id: evidence.targeted-suite
+    type: test.evidence
+    locator: "php artisan test tests/Feature/GoogleCalendarIntegrationTest.php tests/Feature/AuthorizedCampaignContextTest.php tests/Feature/MeetingCalendarConflictTest.php: 27 passed, 220 assertions"
+  - id: evidence.full-suite
+    type: test.evidence
+    locator: "php artisan test: 64 passed, 547 assertions"
+  - id: evidence.frontend
+    type: test.evidence
+    locator: "npm run build: PASS, 2399 modules; warning no bloqueante por chunk MapLocationPicker de 950.49 kB"
+  - id: evidence.qa-probes
+    type: test.evidence
+    locator: "php artisan test /private/tmp/CalendarSyncQaProbeTest.php: 2 passed, 3 failed, 16 assertions"
+  - id: evidence.legacy-payloads
+    type: test.evidence
+    locator: "PHP synthetic unserialize probe: 3/3 legacy payloads incompatible because campaignId is uninitialized"
+  - id: evidence.format
+    type: test.evidence
+    locator: "vendor/bin/pint --test sobre archivos del incremento: FAIL en 6 archivos"
+verifications:
+  - criterion_id: criterion.behavior
+    status: fail
+    evidence_refs:
+      - evidence.targeted-suite
+      - evidence.qa-probes
+      - evidence.legacy-payloads
+  - criterion_id: criterion.regression
+    status: pass
+    evidence_refs:
+      - evidence.full-suite
+      - evidence.frontend
+      - evidence.format
+effects:
+  - >-
+    QA-GCAL-001 — Payloads de jobs anteriores son incompatibles con los
+    constructores nuevos. Criterio afectado: criterion.behavior. Riesgo
+    provisional: impacto alto y probabilidad media cuando una actualizacion
+    conserva trabajos ya encolados. Precondicion: payload serializado antes de
+    agregar campaignId. Reproduccion: deserializar payloads sinteticos con las
+    propiedades anteriores de SyncGoogleCalendarConnection,
+    RenewGoogleCalendarWatch y ApplyCalendarReviewRejection y leer campaignId.
+    Esperado: resolver la campana de forma segura o fallar mediante una
+    transicion controlada y observable. Observado: los tres producen Error por
+    propiedad tipada campaignId no inicializada. Evidencia:
+    app/Jobs/SyncGoogleCalendarConnection.php:23,
+    app/Jobs/RenewGoogleCalendarWatch.php:20,
+    app/Jobs/ApplyCalendarReviewRejection.php:24 y evidence.legacy-payloads.
+  - >-
+    QA-GCAL-002 — Una campana revocada bloquea el outbox de las campanas
+    posteriores. Criterio afectado: criterion.behavior. Riesgo provisional:
+    impacto alto y probabilidad alta si el evento pendiente mas antiguo
+    requiere reconexion. Precondicion: dos eventos no publicados ordenados por
+    id; el primero lanza GoogleCalendarReconnectRequired y el segundo pertenece
+    a otra campana sana. Reproduccion: caso revoked_oldest_campaign del
+    artefacto QA sintetico. Esperado: el primero conserva su error y el segundo
+    se publica independientemente. Observado: return false de Collection.each
+    detiene el lote y el segundo queda sin publicar. Evidencia:
+    app/Jobs/ProcessCalendarOutbox.php:38, :77 y :86; evidence.qa-probes.
+  - >-
+    QA-GCAL-003 — Un run activo huerfano permanece para siempre como
+    sincronizacion en curso. Criterio afectado: criterion.behavior. Riesgo
+    provisional: impacto medio y probabilidad baja a media ante caida entre
+    commit y dispatch o terminacion abrupta del worker. Precondicion: run queued
+    o running antiguo conserva active_key sin job ejecutable. Reproduccion: caso
+    stale_active_run del artefacto QA sintetico. Esperado: vencer el run,
+    registrar el fallo y crear una ejecucion nueva. Observado: el dispatcher
+    reutiliza indefinidamente el mismo run y no encola trabajo nuevo. Evidencia:
+    app/Services/CalendarSyncDispatcher.php:27 y :33; evidence.qa-probes.
+  - >-
+    QA-GCAL-004 — calendar_sync_runs no garantiza pertenencia comun entre
+    campana y conexion. Criterio afectado: criterion.behavior. Riesgo
+    provisional: impacto alto para integridad y aislamiento; probabilidad baja
+    mediante los caminos actuales y mayor ante futuras escrituras o
+    reparaciones. Precondicion: run con campaign_id A y conexion perteneciente a
+    B. Reproduccion: caso sync_run_cannot_reference del artefacto QA sintetico.
+    Esperado: la base rechaza la fila. Observado: las FKs independientes aceptan
+    la relacion cruzada. Evidencia: migracion
+    2026_08_03_000300_create_calendar_sync_runs_table.php:14-15 y
+    evidence.qa-probes.
+  - >-
+    QA-GCAL-005 — Archivos del incremento no satisfacen el formato automatizado
+    del proyecto. Criterio relacionado: criterion.regression. Riesgo
+    provisional: impacto bajo y probabilidad cierta. Esperado: Pint test sin
+    diferencias. Observado: seis archivos relevantes requieren formatters.
+    Evidencia: evidence.format.
+  - El camino nominal de sync run finaliza succeeded, libera active_key y conserva conteos seguros.
+  - La excepcion sintetica de reconexion finaliza failed con reconnect_required y libera active_key.
+  - La deduplicacion nominal, aislamiento HTTP visible y contexto fail-closed pasan en las pruebas existentes.
+  - >-
+    Version evaluada: arbol sin commit sobre base
+    d5452b0ad1295315920477f1cf1bc025be0a9e1d. Hashes relevantes:
+    ProcessCalendarOutbox 6b82721a6b01f87d1943c7c500e91728f14d48a69f7e5ed15e90e6982eb923b8;
+    SyncGoogleCalendarConnection 7b208a37d905281c4e1e73e0cf46b864cd66ba0627c865f1b273eb25163bd518;
+    RenewGoogleCalendarWatch 25596ba5b786eb9223a8b91e110052b98bba3641e42fc5b79b07ccc618361dec;
+    ApplyCalendarReviewRejection 6f8ff4309d1e69b73b45f8de38f74970416a2e0570c9a6bbb3ccf19c50d151ec;
+    CalendarSyncDispatcher 028db15a89647dcb1f6661ca5d9f150dab1bc851b18e5b5e692528f86bbbb9ae;
+    migracion calendar_sync_runs fc9c093f5e763f37dbea1948dc9dbb310418ee1b0dedd28b1fbe9fcaa6bbccd0.
+  - No se llamo Google, no se usaron datos reales y no se modifico codigo productivo ni esquema.
+limitations:
+  - El arbol evaluado no tiene commit exclusivo; contiene tambien cambios del piloto multicampana.
+  - No se ejecuto PostgreSQL para este incremento; la ausencia de FK compuesta se verifico estructuralmente y con SQLite sintetico.
+  - No se realizaron pruebas de navegador; la compilacion demuestra tipado y empaquetado, no comportamiento visual completo.
+  - No se midio carga ni concurrencia distribuida real.
+  - El warning de chunk grande ya trasciende el incremento y no cambia el resultado.
+uncertainty:
+  - Se desconoce cuantos trabajos legados existen en otros entornos; no se inspeccionaron colas reales.
+  - La probabilidad de runs huerfanos depende de la operacion de workers y del driver de cola.
+  - QA no autoriza release ni acepta los riesgos detectados.
+responsibility:
+  current: gc-qa
+  recipient: gc-orchestrator

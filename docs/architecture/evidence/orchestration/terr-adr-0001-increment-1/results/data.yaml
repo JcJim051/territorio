@@ -1,0 +1,72 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.data
+state: completed
+classification: internal
+summary: >-
+  Revision estatica completada para las tres relaciones piloto. Se propone
+  integridad multicampana mediante cinco claves foraneas compuestas PostgreSQL,
+  preservando nulabilidad y comportamiento de eliminacion. La ejecucion del DDL
+  y las pruebas sinteticas en PostgreSQL 16 quedan pendientes de Backend y QA.
+artifacts:
+  - id: artifact.data-review-report
+    type: review.report
+    locator: inline:gc-data-final-response
+evidence_refs:
+  - id: evidence.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: evidence.preflight-report
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md
+  - id: evidence.preflight-sql
+    type: test.evidence
+    locator: database/preflight/tenant-isolation-pilot.sql
+  - id: evidence.campaign-schema
+    type: source.repository
+    locator: database/migrations/2026_07_23_000100_create_campaign_core_tables.php
+  - id: evidence.person-schema
+    type: source.repository
+    locator: database/migrations/2026_07_23_000200_create_territorial_tables.php
+  - id: evidence.operations-schema
+    type: source.repository
+    locator: database/migrations/2026_07_23_000300_create_operations_tables.php
+  - id: evidence.calendar-schema
+    type: source.repository
+    locator: database/migrations/2026_07_24_010000_create_google_calendar_tables.php
+  - id: evidence.postgres-target
+    type: source.repository
+    locator: docker-compose.yml
+verifications:
+  - criterion_id: criterion.schema
+    status: pass
+    evidence_refs:
+      - evidence.campaign-schema
+      - evidence.person-schema
+      - evidence.operations-schema
+      - evidence.calendar-schema
+  - criterion_id: criterion.integrity
+    status: pass
+    evidence_refs:
+      - evidence.adr
+      - evidence.preflight-sql
+      - evidence.postgres-target
+  - criterion_id: criterion.reversibility
+    status: pass
+    evidence_refs:
+      - evidence.adr
+      - artifact.data-review-report
+effects:
+  - No se modificaron archivos, codigo, esquema ni datos del proyecto.
+limitations:
+  - El preflight existente uso attendances y external_calendar_events vacias.
+  - No se consultaron datos reales ni otros entornos.
+  - Docker no estaba disponible durante esta revision.
+  - El DDL propuesto y las pruebas sinteticas no fueron ejecutados en PostgreSQL 16.
+  - El laboratorio temporal no pudo inicializarse por restricciones de memoria compartida.
+uncertainty:
+  - La compatibilidad ejecutable del DDL debe confirmarse en el PostgreSQL 16 objetivo.
+  - La duracion y los bloqueos de indices y validaciones dependen de volumenes no observados.
+  - Se desconoce si otros entornos contienen cruces historicos.
+responsibility:
+  current: gc-data
+  recipient: gc-orchestrator

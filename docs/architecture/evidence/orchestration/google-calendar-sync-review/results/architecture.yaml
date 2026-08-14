@@ -1,0 +1,36 @@
+result_schema: "1"
+task_id: territorio.google-calendar-sync.review.architecture
+classification: internal
+state: completed
+summary: >-
+  La implementacion mejora trazabilidad y UX, pero no satisface completamente
+  TERR-ADR-0002. Fallan compatibilidad de jobs legados, aislamiento operativo
+  del outbox, confirmacion durable de publicacion, idempotencia externa y
+  recuperacion de ejecuciones huerfanas.
+artifacts: []
+evidence_refs:
+  - {id: evidence.adr, type: decision.record, locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md}
+  - {id: evidence.dispatcher, type: source.repository, locator: app/Services/CalendarSyncDispatcher.php}
+  - {id: evidence.sync-job, type: source.repository, locator: app/Jobs/SyncGoogleCalendarConnection.php}
+  - {id: evidence.outbox, type: source.repository, locator: app/Jobs/ProcessCalendarOutbox.php}
+  - {id: evidence.publisher, type: source.repository, locator: app/Services/GoogleCalendarPublisher.php}
+  - {id: evidence.tests, type: test.evidence, locator: "php artisan test --filter=GoogleCalendarIntegrationTest: 12 passed, 93 assertions"}
+verifications:
+  - {criterion_id: criterion.contract, status: fail, evidence_refs: [evidence.adr, evidence.dispatcher, evidence.outbox, evidence.publisher]}
+  - {criterion_id: criterion.compatibility, status: fail, evidence_refs: [evidence.sync-job, evidence.tests]}
+effects:
+  - "P1: payloads serializados antes de campaignId no son compatibles con tres jobs actuales."
+  - "P1: un fallo de una campana detiene el lote outbox global y puede bloquear otras campanas."
+  - "P1: el publisher puede diferir silenciosamente mientras outbox marca published_at."
+  - "P1: un insert externo exitoso seguido de fallo local puede duplicarse al reintentar."
+  - "P2: estado visual y enlace pueden pertenecer a una conexion anterior."
+  - "P2: commit antes de dispatch y terminaciones abruptas pueden dejar runs huerfanos."
+  - "P2: faltan transiciones atomicas, renovacion del lock y FK compuesta."
+  - No se modificaron archivos, esquema, datos ni servicios externos.
+limitations:
+  - No se probo concurrencia real PostgreSQL ni fallos externos.
+  - No se inspecciono ni altero la cola local o productiva.
+uncertainty:
+  - Se desconoce la duracion maxima real frente al TTL del lock.
+  - Se desconoce si otros entornos conservan jobs legados.
+responsibility: {current: gc-architect, recipient: gc-orchestrator}

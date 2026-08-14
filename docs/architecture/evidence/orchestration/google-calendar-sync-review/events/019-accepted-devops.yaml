@@ -1,0 +1,18 @@
+event_schema: "1"
+id: event.google-calendar-review.019
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 19
+previous_event_id: event.google-calendar-review.018
+occurred_at: "2026-08-03T21:34:10Z"
+event_type: task_accepted
+actor: {type: agent, ref: gc-devops}
+subject: {task_id: territorio.google-calendar-sync.review.devops}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.devops-acceptance, type: task.context, locator: codex-agent-message:/root/calendar_devops_readiness}
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: GC-DevOps acepto evaluar readiness y reversion sin operar servicios ni colas.

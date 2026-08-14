@@ -1,0 +1,29 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.028
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 28
+previous_event_id: event.terr-adr-0001.inc1.027
+occurred_at: "2026-08-03T15:36:21Z"
+event_type: routing_decided
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.backend-qa001
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+  - gate.material-action:approved
+evidence_refs:
+  - id: evidence.composition
+    type: organization.composition
+    locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml
+  - id: evidence.qa-failure
+    type: result.envelope
+    locator: results/qa.yaml
+details:
+  capability: software.backend.defect-correction
+  position_id: position.backend
+  agent_id: gc-backend
+  reason: QA-001 es un fallo reproducible dentro del alcance aprobado y la composicion asigna su correccion a position.backend.

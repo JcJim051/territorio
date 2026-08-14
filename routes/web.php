@@ -6,9 +6,11 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\CampaignController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\CampaignSwitchController;
+use App\Http\Controllers\CampaignPublicSiteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MeetingChangeRequestController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\GoogleCalendarConnectionController;
 use App\Http\Controllers\GoogleCalendarWebhookController;
 use App\Http\Controllers\CalendarReviewController;
@@ -33,16 +35,27 @@ Route::prefix('public/v1')->middleware('throttle:30,1')->group(function () {
         ->name('public.invitations.accept');
 });
 
+Route::get('/sites/{slug}', [CampaignPublicSiteController::class, 'showBySlug'])->name('public-sites.show');
+Route::get('/', [CampaignPublicSiteController::class, 'root'])->name('dashboard');
+
 Route::post('/webhooks/google-calendar/v1', GoogleCalendarWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('webhooks.google-calendar');
 
 Route::middleware(['auth', 'campaign'])->group(function () {
-    Route::get('/', DashboardController::class)->name('dashboard');
     Route::post('/campaign/switch', CampaignSwitchController::class)->name('campaign.switch');
     Route::get('/campaign/settings/operations', [CampaignOperationalSettingsController::class, 'edit'])->name('campaign.settings.operations');
     Route::put('/campaign/settings/operations', [CampaignOperationalSettingsController::class, 'update'])->name('campaign.settings.operations.update');
+    Route::get('/campaign/public-site', [CampaignPublicSiteController::class, 'edit'])->name('campaign.public-site.edit');
+    Route::get('/campaign/public-site/preview', [CampaignPublicSiteController::class, 'preview'])->name('campaign.public-site.preview');
+    Route::put('/campaign/public-site', [CampaignPublicSiteController::class, 'update'])->name('campaign.public-site.update');
+    Route::post('/campaign/public-site/media', [CampaignPublicSiteController::class, 'uploadMedia'])->name('campaign.public-site.media');
+    Route::post('/campaign/public-site/publish', [CampaignPublicSiteController::class, 'publish'])->name('campaign.public-site.publish');
+    Route::post('/campaign/public-site/disable', [CampaignPublicSiteController::class, 'disable'])->name('campaign.public-site.disable');
     Route::get('/driver/routes', DriverRouteController::class)->name('driver.routes');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('/notifications/{notificationId}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::get('/territorial/network', TerritorialGraphController::class)->name('territorial.graph');
     Route::get('/territorial/nodes', [ReferralNodeController::class, 'index'])->name('territorial.nodes.index');
     Route::post('/territorial/nodes/{publicId}', [ReferralNodeController::class, 'promote'])->name('territorial.nodes.promote');
@@ -62,6 +75,7 @@ Route::middleware(['auth', 'campaign'])->group(function () {
     Route::put('/meetings/{publicId}', [MeetingController::class, 'update'])->name('meetings.update');
     Route::post('/meetings/{publicId}/approve', [MeetingController::class, 'approve'])->name('meetings.approve');
     Route::post('/meetings/{publicId}/reject', [MeetingController::class, 'reject'])->name('meetings.reject');
+    Route::post('/meetings/{publicId}/complete', [MeetingController::class, 'complete'])->name('meetings.complete');
     Route::delete('/meetings/{publicId}', [MeetingController::class, 'destroy'])->name('meetings.destroy');
     Route::post('/meeting-changes/{publicId}/approve', [MeetingChangeRequestController::class, 'approve'])->name('meeting-changes.approve');
     Route::post('/meeting-changes/{publicId}/reject', [MeetingChangeRequestController::class, 'reject'])->name('meeting-changes.reject');

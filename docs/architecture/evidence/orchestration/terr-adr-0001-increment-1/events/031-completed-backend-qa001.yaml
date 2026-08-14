@@ -1,0 +1,25 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.031
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 31
+previous_event_id: event.terr-adr-0001.inc1.030
+occurred_at: "2026-08-03T15:41:15Z"
+event_type: task_completed
+actor:
+  type: agent
+  ref: gc-backend
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.backend-qa001
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+  - gate.material-action:approved
+evidence_refs:
+  - id: evidence.result
+    type: result.envelope
+    locator: results/backend-qa001.yaml
+details:
+  from_state: in_progress
+  to_state: completed
+  reason: GC-Backend entrego una correccion acotada con regresion PHP verde y Result Envelope valido.

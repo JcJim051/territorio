@@ -5,6 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#0d4d4b">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+        <link rel="shortcut icon" href="/favicon.svg">
         <link rel="manifest" href="/manifest.webmanifest">
         <title inertia>{{ config('app.name', 'Territorio') }}</title>
         @viteReactRefresh

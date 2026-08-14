@@ -1,0 +1,54 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review.backend-implementation
+correlation_id: territorio-google-calendar-sync-review-20260803
+parent_task_id: territorio.google-calendar-sync.review
+state: completed
+objective: Implementar la correccion minima aprobada para robustecer Google Calendar sin ampliar funcionalidad.
+scope:
+  includes:
+    - Compatibilidad fail-closed de SyncGoogleCalendarConnection, RenewGoogleCalendarWatch y ApplyCalendarReviewRejection con payloads legados.
+    - Procesamiento outbox aislado por campana con resultado de publicacion explicito y sin confirmaciones falsas.
+    - Idempotencia externa determinista para nuevos eventos y adopcion segura ante reintento.
+    - Clasificacion y sanitizacion central de fallos Google, incluida autenticacion definitiva.
+    - Migracion aditiva para FK compuesta, lifecycle, lease y heartbeat de calendar_sync_runs.
+    - Recuperacion atomica de runs huerfanos y estado/enlace ligados al calendario activo.
+    - Pruebas sinteticas, PostgreSQL cuando este disponible, suite completa, Pint y build.
+  excludes:
+    - Nuevas funciones de producto, notificaciones generales o cambios visuales ajenos.
+    - Produccion, despliegue, llamadas reales a Google, datos reales o limpieza destructiva de colas.
+    - Borrar eventos Google, mappings historicos o historial calendar_sync_runs.
+capability:
+  id: software.backend.defect-correction
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.backend
+  agent_id: gc-backend
+governance:
+  profile: supervised
+  authority_refs: [gravity-core.owner, TERR-ADR-0002, gate.material-action:approved]
+  approval_gate_refs: [gate.material-action, gate.release]
+constraints:
+  - Preservar todos los cambios existentes del working tree y no tocar hallazgos ajenos.
+  - Usar solo bases de prueba sinteticas; no migrar ni modificar la base local con datos de uso.
+  - No derivar autorizacion desde source strings ni debilitar TERR-ADR-0001.
+  - Mantener compatibilidad hacia atras y documentar cualquier decision aun pendiente.
+context_refs:
+  - {id: context.repository, type: source.repository, locator: /Applications/XAMPP/xamppfiles/htdocs/territorio}
+  - {id: context.proposal, type: decision.record, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/reports/propuesta-correccion.md}
+  - {id: context.backend-review, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/backend.yaml}
+  - {id: context.qa, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/qa.yaml}
+  - {id: context.security, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/security.yaml}
+  - {id: context.devops, type: test.evidence, locator: docs/architecture/evidence/orchestration/google-calendar-sync-review/results/devops.yaml}
+expected_outputs:
+  - Codigo y migraciones limitados a la correccion aprobada.
+  - Pruebas reproducibles para cada defecto y regresion completa.
+  - Result Envelope con archivos, evidencia, efectos, limitaciones y reversion.
+acceptance_criteria:
+  - {id: criterion.legacy, statement: "Los tres payloads legados se procesan o fallan de forma controlada sin campaignId no inicializado."}
+  - {id: criterion.outbox, statement: "Una campana fallida no bloquea otra y published_at exige confirmacion explicita."}
+  - {id: criterion.idempotency, statement: "El reintento despues de exito remoto no duplica el evento nuevo."}
+  - {id: criterion.security, statement: "Errores externos se clasifican y sanitizan antes de persistir o relanzar."}
+  - {id: criterion.integrity, statement: "Runs garantizan campana-conexion y recuperan lifecycle huerfano atomicamente."}
+  - {id: criterion.active-calendar, statement: "Estado y enlace sincronizados pertenecen al calendario activo."}
+  - {id: criterion.regression, statement: "Pruebas focales, suite, formato y build pasan sin llamadas reales a Google."}
+classification: internal

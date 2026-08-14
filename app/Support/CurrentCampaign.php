@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Campaign;
 use App\Models\CampaignMembership;
+use App\Support\Tenancy\AuthorizedExecutionContext;
+use App\Support\Tenancy\UnauthorizedExecutionContext;
 use Illuminate\Validation\ValidationException;
 
 class CurrentCampaign
@@ -11,7 +13,14 @@ class CurrentCampaign
     public function __construct(
         public readonly Campaign $campaign,
         public readonly CampaignMembership $membership,
+        public readonly AuthorizedExecutionContext $executionContext,
     ) {
+        if (
+            $executionContext->campaignId() !== (int) $campaign->id
+            || (int) $membership->campaign_id !== (int) $campaign->id
+        ) {
+            throw new UnauthorizedExecutionContext('CurrentCampaign requiere una resolución autorizada coincidente.');
+        }
     }
 
     public function authorize(string $permission): void

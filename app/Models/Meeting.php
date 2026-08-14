@@ -16,6 +16,7 @@ class Meeting extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'approved_at' => 'datetime',
+            'completed_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
         ];
@@ -24,6 +25,16 @@ class Meeting extends Model
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);
+    }
+
+    public function requester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function completer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'completed_by');
     }
 
     public function leader(): BelongsTo

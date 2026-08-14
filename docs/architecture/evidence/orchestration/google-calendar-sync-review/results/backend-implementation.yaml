@@ -1,0 +1,45 @@
+result_schema: "1"
+task_id: territorio.google-calendar-sync.review.backend-implementation
+classification: internal
+state: completed
+summary: "Se implementó la corrección mínima aprobada de confiabilidad de Google Calendar: payloads legados fail-closed, outbox por campaña, confirmación explícita, idempotencia determinista, clasificación segura de errores, leases/heartbeat y recuperación de runs, y estado/enlace ligado al calendario activo."
+artifacts:
+  - {id: artifact.calendar-runtime, type: source.code, locator: "app/Jobs; app/Services; app/Models/CalendarSyncRun.php; app/Models/CalendarConnection.php; app/Support/Tenancy/CampaignContextResolver.php"}
+  - {id: artifact.calendar-http, type: source.code, locator: "app/Http/Controllers/GoogleCalendarConnectionController.php; app/Http/Controllers/MeetingController.php; app/Http/Controllers/MeetingChangeRequestController.php"}
+  - {id: artifact.calendar-contracts, type: source.code, locator: "app/Enums/CalendarPublicationResult.php; app/Exceptions/CalendarPublicationDeferred.php; app/Exceptions/GoogleCalendarSafeFailure.php"}
+  - {id: artifact.calendar-migration, type: database.migration, locator: "database/migrations/2026_08_04_000100_harden_calendar_sync_runs.php"}
+  - {id: artifact.calendar-tests, type: test.source, locator: "tests/Feature/GoogleCalendarReliabilityTest.php; tests/Unit/GoogleCalendarFailureClassifierTest.php; tests/Postgres/TenantIsolationPilotTest.php"}
+evidence_refs:
+  - {id: evidence.focused-suite, type: test.execution, locator: "php artisan test [5 suites] => 43 passed, 295 assertions"}
+  - {id: evidence.full-suite, type: test.execution, locator: "php artisan test => 80 passed, 622 assertions"}
+  - {id: evidence.pint, type: quality.execution, locator: "vendor/bin/pint --test [scoped files] => passed"}
+  - {id: evidence.frontend-build, type: build.execution, locator: "npm run build => passed; existing non-blocking MapLocationPicker chunk warning"}
+  - {id: evidence.diff-check, type: quality.execution, locator: "git diff --check => passed"}
+  - {id: evidence.postgres-blocked, type: test.execution, locator: "php artisan test --configuration phpunit.postgres.xml => connection refused at 127.0.0.1:5432 before assertions; synthetic database only"}
+verifications:
+  - {criterion_id: criterion.legacy, status: pass, evidence_refs: [evidence.focused-suite, evidence.full-suite]}
+  - {criterion_id: criterion.outbox, status: pass, evidence_refs: [evidence.focused-suite, evidence.full-suite]}
+  - {criterion_id: criterion.idempotency, status: pass, evidence_refs: [evidence.focused-suite]}
+  - {criterion_id: criterion.security, status: pass, evidence_refs: [evidence.focused-suite, evidence.full-suite]}
+  - {criterion_id: criterion.integrity, status: not_evaluated, evidence_refs: [evidence.full-suite, evidence.postgres-blocked]}
+  - {criterion_id: criterion.active-calendar, status: pass, evidence_refs: [evidence.focused-suite, evidence.full-suite]}
+  - {criterion_id: criterion.regression, status: pass, evidence_refs: [evidence.full-suite, evidence.pint, evidence.frontend-build, evidence.diff-check]}
+effects:
+  - "Los jobs legados resuelven campaña únicamente desde registros persistidos y fallan cerrados."
+  - "La publicación outbox queda aislada por campaña y solo marca published_at ante confirmación o no-op terminal explícito."
+  - "La creación remota usa ID determinista y adopción segura tras conflicto 409."
+  - "Los fallos Google se clasifican y sanitizan; invalid_grant y autenticación definitiva requieren reconexión."
+  - "calendar_sync_runs incorpora lease, heartbeat, recuperación CAS y restricciones PostgreSQL NOT VALID aplicables inmediatamente a filas nuevas."
+  - "El estado y enlace mostrados exigen mapping del calendario activo."
+limitations:
+  - "La FK y checks PostgreSQL no fueron ejecutados en runtime porque PostgreSQL de pruebas no estaba disponible; requieren verificación independiente antes del gate de release."
+  - "No se borran eventos ni mappings históricos al cambiar calendario, por exclusión expresa del alcance."
+  - "No se definió retención/purga de calendar_sync_runs ni se modificó la semántica de deduplicación concurrente force_full."
+  - "No hubo llamadas reales a Google, despliegue, migración de datos de uso ni cambios de infraestructura."
+  - "Reversión de aplicación: pausar workers y volver al código anterior compatible manteniendo columnas aditivas. Reversión de restricciones: retirar por nombre FK/checks nuevos por separado. Datos: no se migraron ni transformaron filas de uso; no hay reversión de datos ejecutada."
+uncertainty:
+  - "La validez efectiva del DDL y del cascade en PostgreSQL permanece pendiente de la suite sintética PostgreSQL."
+  - "El gate.release sigue dependiendo de QA independiente y evaluación DevOps; esta entrega backend no lo autoriza."
+responsibility:
+  current: "GC-Backend: implementación y evidencia técnica del alcance aprobado."
+  recipient: "GC-Orchestrator: consolidación; GC-QA y GC-DevOps: verificación independiente y decisión de gate por autoridad humana."

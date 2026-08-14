@@ -1,0 +1,73 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.qa-qa001
+classification: internal
+state: completed
+summary: >-
+  QA-001 fue reverificado independientemente con resultado pass. El flujo HTTP
+  con cola sync procesa el outbox de la misma campana sin responder 500, mientras
+  campanas y decisiones incompatibles continuan rechazadas. La suite PHP completa
+  termino con 61 pruebas aprobadas y 530 aserciones.
+artifacts:
+  - id: artifact.qa001-runner
+    type: source.code
+    locator: app/Support/Tenancy/AuthorizedContextRunner.php
+  - id: artifact.qa001-outbox
+    type: source.code
+    locator: app/Jobs/ProcessCalendarOutbox.php
+  - id: artifact.qa001-tests
+    type: test.source
+    locator: tests/Feature/AuthorizedCampaignContextTest.php
+  - id: artifact.qa001-reproduction
+    type: test.source
+    locator: tests/Feature/AdminCrudAndDecisionQueueTest.php
+evidence_refs:
+  - id: evidence.qa001-http
+    type: test.evidence
+    locator: "inline:QA-001 reproduction PASS; 1 test, 18 assertions"
+  - id: evidence.qa001-composition
+    type: test.evidence
+    locator: "inline:AuthorizedCampaignContextTest PASS; 8 tests, 27 assertions"
+  - id: evidence.qa001-regression
+    type: test.evidence
+    locator: "inline:PHP complete suite PASS; 61 tests, 530 assertions"
+  - id: evidence.qa001-postgresql-inherited
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/qa.yaml
+verifications:
+  - criterion_id: criterion.qa001
+    status: pass
+    evidence_refs:
+      - evidence.qa001-http
+      - evidence.qa001-regression
+  - criterion_id: criterion.isolation
+    status: pass
+    evidence_refs:
+      - evidence.qa001-composition
+      - evidence.qa001-regression
+  - criterion_id: criterion.regression
+    status: pass
+    evidence_refs:
+      - evidence.qa001-regression
+  - criterion_id: criterion.scope
+    status: pass
+    evidence_refs:
+      - artifact.qa001-runner
+      - artifact.qa001-outbox
+      - artifact.qa001-tests
+      - evidence.qa001-postgresql-inherited
+effects:
+  - El flujo HTTP con cola sync deja de fallar por anidamiento legitimo.
+  - El contexto HTTP propietario permanece activo durante el outbox sin ser reemplazado.
+  - La limpieza sigue a cargo del runner propietario y se verifica al finalizar.
+  - Otra campana, un propietario outbox y decisiones incompatibles fallan cerrados.
+  - Las migraciones no cambiaron y la evidencia PostgreSQL 16 anterior sigue aplicable.
+  - No se modifico ningun archivo durante la reverificacion.
+limitations:
+  - PostgreSQL y frontend no se repitieron porque QA-001 no cambio esquema ni interfaz.
+  - La evaluacion no autoriza release ni despliegue.
+  - No se evaluaron hallazgos fuera de QA-001.
+uncertainty:
+  - No permanece incertidumbre material dentro del alcance autorizado.
+responsibility:
+  current: gc-qa
+  recipient: gc-orchestrator

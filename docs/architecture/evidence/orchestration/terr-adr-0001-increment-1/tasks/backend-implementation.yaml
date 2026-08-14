@@ -1,0 +1,72 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.backend
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1
+state: completed
+objective: Implementar la correccion minima del piloto multicampana aprobada en TERR-ADR-0001 y en la propuesta consolidada.
+scope:
+  includes:
+    - Contexto autorizado tipado con alcance de campana, store, runner y resolvers controlados.
+    - Compatibilidad de CurrentCampaign y endurecimiento de los jobs de calendario del piloto.
+    - Indices y cinco FK compuestas PostgreSQL preservando nulabilidad y comportamiento de eliminacion.
+    - Pruebas unitarias, funcionales y PostgreSQL sinteticas necesarias para entregar el cambio a QA.
+  excludes:
+    - RLS, recursos compartidos, otras relaciones y decisiones sobre usuarios multicampana.
+    - Produccion, despliegues, datos reales, remediacion de datos y servicios externos.
+    - Refactorizaciones o hallazgos no necesarios para el piloto.
+capability:
+  id: software.backend.defect-correction
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.backend
+  agent_id: gc-backend
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+    - gate.material-action:approved
+  approval_gate_refs:
+    - gate.material-action
+    - gate.release
+constraints:
+  - No usar datos reales ni modificar bases persistentes del usuario; las pruebas de esquema usan laboratorios sinteticos desechables.
+  - No desplegar, promover ni llamar servicios externos.
+  - Mantener filtros manuales, FK simples y decisiones de producto pendientes.
+  - Usar apply_patch para ediciones y preservar cambios ajenos.
+  - Detenerse ante cruces historicos o una ampliacion de alcance.
+context_refs:
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio@d5452b0ad1295315920477f1cf1bc025be0a9e1d
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: context.proposal
+    type: decision.record
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/reports/propuesta-implementable.md
+  - id: context.architecture
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/architecture.yaml
+  - id: context.data
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/data.yaml
+  - id: context.security
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/security.yaml
+expected_outputs:
+  - Cambios de aplicacion y migraciones limitados al piloto aprobado.
+  - Pruebas automatizadas y evidencia reproducible con datos sinteticos.
+  - Result Envelope valido con archivos cambiados, verificaciones, efectos, limitaciones, incertidumbre y responsabilidad.
+acceptance_criteria:
+  - id: criterion.context
+    statement: El runner solo acepta contexto autorizado, falla cerrado y limpia siempre en finally sin usar source como autoridad.
+  - id: criterion.jobs
+    statement: Los jobs piloto verifican campaign_id y referencia durable antes de leer, escribir o invocar adaptadores externos.
+  - id: criterion.database
+    statement: Las cinco relaciones rechazan cruces en PostgreSQL 16 preservando nulabilidad y eliminacion existentes.
+  - id: criterion.compatibility
+    statement: Varias membresias por usuario siguen representables y las decisiones pendientes no se codifican.
+  - id: criterion.scope
+    statement: No hay cambios fuera del alcance piloto ni despliegues o datos reales.
+classification: internal

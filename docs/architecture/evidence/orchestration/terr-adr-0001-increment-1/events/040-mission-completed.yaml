@@ -1,0 +1,27 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.040
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 40
+previous_event_id: event.terr-adr-0001.inc1.039
+occurred_at: "2026-08-03T15:47:55Z"
+event_type: mission_completed
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.result
+    type: result.envelope
+    locator: results/mission.yaml
+  - id: evidence.final-report
+    type: review.report
+    locator: reports/resultado-final.md
+details:
+  from_state: accepted
+  to_state: completed
+  reason: La implementacion local y la verificacion independiente del piloto concluyeron; release permanece fuera de alcance y cerrado.

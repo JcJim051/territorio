@@ -2,9 +2,10 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\CampaignMembership;
 use App\Models\Campaign;
+use App\Models\CampaignMembership;
 use App\Support\CurrentCampaign;
+use App\Support\Tenancy\CampaignContextResolver;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -14,8 +15,8 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        $current = null;
-        if ($request->user()) {
+        $current = app()->bound(CurrentCampaign::class) ? app(CurrentCampaign::class) : null;
+        if (! $current && $request->user()) {
             $membershipQuery = CampaignMembership::query()
                 ->with(['campaign.organization', 'role', 'user'])
                 ->where('user_id', $request->user()->id)
@@ -26,13 +27,12 @@ class HandleInertiaRequests extends Middleware
                     ->where('campaign_id', (int) $request->session()->get('campaign_id'))
                     ->first()
                 : null;
-            $membership ??= CampaignMembership::query()
-                ->with(['campaign.organization', 'role', 'user'])
-                ->where('user_id', $request->user()->id)
-                ->where('is_active', true)
-                ->orderBy('id')
-                ->first();
-            $current = $membership ? new CurrentCampaign($membership->campaign, $membership) : null;
+            $membership ??= $membershipQuery->orderBy('id')->first();
+
+            if ($membership) {
+                $context = app(CampaignContextResolver::class)->fromMembership($membership);
+                $current = new CurrentCampaign($membership->campaign, $membership, $context);
+            }
         }
 
         return [
@@ -75,6 +75,29 @@ class HandleInertiaRequests extends Middleware
                         'themeColor' => $campaign->theme_color,
                     ])
                     ->values(),
+            'notifications' => fn () => ! $request->user() || ! $current
+                ? ['unread' => 0, 'latest' => []]
+                : [
+                    'unread' => $request->user()
+                        ->unreadNotifications()
+                        ->where('data->campaign_id', $current->campaign->id)
+                        ->count(),
+                    'latest' => $request->user()
+                        ->notifications()
+                        ->where('data->campaign_id', $current->campaign->id)
+                        ->latest()
+                        ->limit(6)
+                        ->get()
+                        ->map(fn ($notification) => [
+                            'id' => $notification->id,
+                            'title' => $notification->data['title'] ?? 'Notificación',
+                            'message' => $notification->data['message'] ?? '',
+                            'href' => $notification->data['href'] ?? '/',
+                            'category' => $notification->data['category'] ?? 'general',
+                            'readAt' => $notification->read_at?->toIso8601String(),
+                            'createdAt' => $notification->created_at?->toIso8601String(),
+                        ]),
+                ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

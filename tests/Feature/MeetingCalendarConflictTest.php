@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\CalendarConnection;
 use App\Models\Campaign;
 use App\Models\CampaignMembership;
 use App\Models\CampaignRole;
-use App\Models\CalendarConnection;
 use App\Models\ExternalCalendarEvent;
+use App\Models\IntegrationMapping;
 use App\Models\Meeting;
 use App\Models\Organization;
 use App\Models\User;
@@ -120,7 +121,7 @@ class MeetingCalendarConflictTest extends TestCase
                 ->where('meetings.1.googleSync', 'not_connected')
                 ->where('calendarIntegration.connected', false));
 
-        CalendarConnection::create([
+        $connection = CalendarConnection::create([
             'campaign_id' => $campaign->id,
             'calendar_id' => 'candidate-calendar',
             'calendar_name' => 'Agenda candidato',
@@ -128,7 +129,15 @@ class MeetingCalendarConflictTest extends TestCase
             'refresh_token' => 'encrypted-by-model',
             'status' => 'active',
         ]);
-        $approved->update(['google_event_id' => 'google-event-1']);
+        $approved->update(['google_event_id' => 'google-event-1', 'google_etag' => '"etag"']);
+        IntegrationMapping::create([
+            'campaign_id' => $campaign->id,
+            'system' => 'google_calendar',
+            'entity_type' => 'meeting',
+            'local_id' => (string) $approved->id,
+            'external_id' => 'google-event-1',
+            'metadata' => ['calendar_connection_id' => $connection->id, 'calendar_id' => $connection->calendar_id],
+        ]);
 
         $this->actingAs($admin)
             ->get('/meetings?month='.$day->format('Y-m').'&date='.$day->format('Y-m-d'))
@@ -153,6 +162,35 @@ class MeetingCalendarConflictTest extends TestCase
                 ->has('meetings', 30)
                 ->where('meetings.0.title', 'Actividad 00')
                 ->where('meetings.29.title', 'Actividad 29'));
+    }
+
+    public function test_approved_meeting_can_be_marked_as_completed_for_metrics(): void
+    {
+        [$campaign, $admin] = $this->context();
+        $day = now()->subDay()->startOfDay();
+        $meeting = $this->meeting($campaign, $admin, 'Reunión realizada', $day->copy()->setTime(10, 0), $day->copy()->setTime(11, 0), 'approved');
+        $requested = $this->meeting($campaign, $admin, 'Solicitud pendiente', $day->copy()->setTime(12, 0), $day->copy()->setTime(13, 0), 'requested');
+
+        $this->actingAs($admin)
+            ->post("/meetings/{$meeting->public_id}/complete", [
+                'actual_attendees' => 18,
+                'outcome' => 'Se consolidaron compromisos con el sector.',
+            ])
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('meetings', [
+            'id' => $meeting->id,
+            'status' => 'completed',
+            'actual_attendees' => 18,
+            'outcome' => 'Se consolidaron compromisos con el sector.',
+            'completed_by' => $admin->id,
+        ]);
+        $this->assertNotNull($meeting->fresh()->completed_at);
+
+        $this->actingAs($admin)
+            ->post("/meetings/{$requested->public_id}/complete", ['actual_attendees' => 12])
+            ->assertSessionHasErrors('meeting');
+        $this->assertDatabaseHas('meetings', ['id' => $requested->id, 'status' => 'requested']);
     }
 
     public function test_calendar_does_not_duplicate_a_platform_meeting_as_an_external_event(): void

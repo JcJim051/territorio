@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
-    AlertTriangle, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight,
+    AlertTriangle, CalendarCheck2, CalendarDays, Check, CheckCheck, CheckCircle2, ChevronLeft, ChevronRight,
     Clock3, Cloud, LayoutList, MapPin, Navigation, PackageCheck, Pencil, Plus, Route, Trash2, UserRound, Users, X, XCircle,
 } from 'lucide-react';
 import { FormEvent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
@@ -20,12 +20,14 @@ type InventoryResource = { id: number; name: string; kind: string; unit: string;
 type Meeting = {
     id: string; title: string; type: string; objective?: string; status: string; startsAt: string; endsAt: string;
     location?: string; address?: string; latitude?: number; longitude?: number; locationNotes?: string;
-    expectedAttendees: number; leaderId?: number; territoryId?: number; leader?: string; territory?: string;
+    expectedAttendees: number; actualAttendees: number; outcome?: string; completedAt?: string;
+    leaderId?: number; territoryId?: number; leader?: string; territory?: string;
     conflicts: Conflict[]; hasBlockingConflict: boolean; hasPotentialConflict: boolean;
     requirements: ResourceRequirement[]; hasResourceBlock: boolean;
     mobility: { before?: TravelLeg; after?: TravelLeg };
     pendingChange?: { id: string; changes: Partial<MeetingForm>; createdAt: string };
     googleSync: 'after_approval' | 'not_connected' | 'queued' | 'synced' | 'failed' | 'not_applicable';
+    googleHtmlLink?: string;
 };
 type ExternalEvent = {
     id: string; title: string; startsAt: string; endsAt: string; location?: string; allDay: boolean;
@@ -75,6 +77,7 @@ export default function Meetings({ meetings, externalEvents, leaders, territorie
     const [editing, setEditing] = useState<Meeting | null>(null);
     const form = useForm<MeetingForm>(emptyForm);
     const can = (permission: string) => currentCampaign?.permissions.includes('*') || currentCampaign?.permissions.includes(permission);
+    const currentReviewing = reviewing ? meetings.find((meeting) => meeting.id === reviewing.id) ?? reviewing : null;
     useEffect(() => {
         const day = selectedMobileDay.current;
         const scroller = mobileDaysScroller.current;
@@ -82,6 +85,14 @@ export default function Meetings({ meetings, externalEvents, leaders, territorie
             scroller.scrollTo({ left: day.offsetLeft - (scroller.clientWidth - day.clientWidth) / 2, behavior: 'smooth' });
         }
     }, [selectedDate, period.month]);
+    useEffect(() => {
+        if (!meetings.some((meeting) => meeting.googleSync === 'queued')) return;
+        const timer = window.setInterval(() => {
+            router.reload({ only: ['meetings', 'calendarIntegration'], preserveScroll: true, preserveState: true });
+        }, 2500);
+
+        return () => window.clearInterval(timer);
+    }, [meetings]);
 
     const calendarDays = useMemo(() => daysBetween(period.from, period.to), [period.from, period.to]);
     const eventsByDate = useMemo(() => meetings.reduce<Record<string, Meeting[]>>((result, meeting) => {
@@ -135,6 +146,26 @@ export default function Meetings({ meetings, externalEvents, leaders, territorie
         selectDay(key);
     };
     const approveMeeting = (meeting: Meeting) => router.post(`/meetings/${meeting.id}/approve`, {}, { preserveScroll: true });
+    const completeMeeting = (meeting: Meeting, closeDetail = false) => {
+        const attendance = window.prompt('Asistentes reales de la reunión', String(meeting.actualAttendees || meeting.expectedAttendees || 0));
+        if (attendance === null) return;
+        const actualAttendees = Number(attendance);
+        if (!Number.isInteger(actualAttendees) || actualAttendees < 0) {
+            window.alert('Ingresa un número válido de asistentes.');
+            return;
+        }
+        const outcome = window.prompt('Resultado u observación breve de la reunión (opcional)', meeting.outcome ?? '');
+        if (outcome === null) return;
+        router.post(`/meetings/${meeting.id}/complete`, {
+            actual_attendees: actualAttendees,
+            outcome: outcome.trim() || null,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (closeDetail) setReviewing(null);
+            },
+        });
+    };
     const approveGoogleEvent = (event: ExternalEvent) => {
         if (event.pendingReviewId) router.post(`/calendar/reviews/${event.pendingReviewId}/approve`, {}, { preserveScroll: true });
     };
@@ -278,7 +309,7 @@ export default function Meetings({ meetings, externalEvents, leaders, territorie
                     {selectedCount > 8 && <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-[10px] font-bold text-slate-500">Jornada de alta actividad · ordenada cronológicamente · desplázate para consultar las {selectedCount} entradas</div>}
                     <div className={`${viewMode === 'day' ? 'max-h-[68vh]' : 'max-h-[610px]'} space-y-3 overflow-auto p-3 sm:p-4`}>
                         {selectedAgendaItems.map((item) => item.kind === 'meeting'
-                            ? <DayAgendaCard key={item.meeting.id} meeting={item.meeting} onOpen={() => setReviewing(item.meeting)} onApprove={() => approveMeeting(item.meeting)} canApprove={!!can('meetings.approve')} calendarConnected={calendarIntegration.connected} />
+                            ? <DayAgendaCard key={item.meeting.id} meeting={item.meeting} onOpen={() => setReviewing(item.meeting)} onApprove={() => approveMeeting(item.meeting)} onComplete={() => completeMeeting(item.meeting)} canApprove={!!can('meetings.approve')} canComplete={!!can('meetings.manage')} calendarConnected={calendarIntegration.connected} />
                             : <GoogleDayCard key={item.event.id} event={item.event} onApprove={() => approveGoogleEvent(item.event)} canApprove={!!can('calendar.changes.review')} />)}
                         {selectedMeetings.length + selectedExternal.length === 0 && <div className="py-12 text-center"><CalendarDays size={28} className="mx-auto text-slate-200" /><p className="mt-3 text-sm font-bold text-slate-500">Día disponible</p><p className="mt-1 text-xs text-slate-400">No hay actividades programadas.</p></div>}
                     </div>
@@ -286,7 +317,7 @@ export default function Meetings({ meetings, externalEvents, leaders, territorie
                 </aside>
             </section>
 
-            {reviewing && <ReviewDrawer meeting={reviewing} dayMeetings={eventsByDate[reviewing.startsAt.slice(0, 10)] ?? []} onClose={() => setReviewing(null)} onEdit={() => startEdit(reviewing)} onDelete={() => remove(reviewing)} canApprove={!!can('meetings.approve')} canEdit={!!can('meetings.manage')} canDelete={!!can('meetings.delete')} calendarConnected={calendarIntegration.connected} />}
+            {currentReviewing && <ReviewDrawer meeting={currentReviewing} dayMeetings={eventsByDate[currentReviewing.startsAt.slice(0, 10)] ?? []} onClose={() => setReviewing(null)} onEdit={() => startEdit(currentReviewing)} onDelete={() => remove(currentReviewing)} onComplete={() => completeMeeting(currentReviewing, true)} canApprove={!!can('meetings.approve')} canComplete={!!can('meetings.manage')} canEdit={!!can('meetings.manage')} canDelete={!!can('meetings.delete')} calendarConnected={calendarIntegration.connected} />}
 
             {open && <Modal title={editing ? 'Editar actividad' : 'Programar actividad'} onClose={() => setOpen(false)}>
                 <form onSubmit={submit} className="grid gap-5 p-6 md:grid-cols-2">
@@ -357,9 +388,9 @@ function GoogleDayCard({ event, onApprove, canApprove }: { event: ExternalEvent;
     return <div className={`rounded-xl border p-3 ${pending ? 'border-red-200 bg-red-50 text-red-700' : 'border-sky-200 bg-sky-50 text-sky-700'}`}><div className="flex gap-3"><div className="min-w-12 text-xs font-black">{event.allDay ? 'Día' : time(event.startsAt)}</div><div className="min-w-0 flex-1"><div className="truncate text-xs font-black">{event.title}</div><div className="mt-1 truncate text-[10px] opacity-70">{event.location ?? 'Sin ubicación'}</div><div className="mt-2 text-[9px] font-black uppercase">{pending ? 'Creado en Google · requiere autorización' : 'Evento externo autorizado'}</div></div></div>{pending && <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-red-200/60 pt-3"><Link href={reviewHref} className="rounded-lg bg-white/70 px-3 py-2 text-[10px] font-black">Revisar detalle</Link>{canApprove && event.pendingReviewId && <button onClick={onApprove} className="rounded-lg bg-red-700 px-3 py-2 text-[10px] font-black text-white"><Check size={12} className="mr-1 inline" /> Autorizar bloqueo</button>}</div>}</div>;
 }
 
-function DayAgendaCard({ meeting, onOpen, onApprove, canApprove, calendarConnected }: { meeting: Meeting; onOpen: () => void; onApprove: () => void; canApprove: boolean; calendarConnected: boolean }) {
+function DayAgendaCard({ meeting, onOpen, onApprove, onComplete, canApprove, canComplete, calendarConnected }: { meeting: Meeting; onOpen: () => void; onApprove: () => void; onComplete: () => void; canApprove: boolean; canComplete: boolean; calendarConnected: boolean }) {
     const travelRisk = meeting.mobility.before?.risk || meeting.mobility.after?.risk;
-    return <div className={`rounded-xl border p-3 transition hover:shadow-sm ${statusStyles[meeting.status] ?? statusStyles.cancelled}`}><button onClick={onOpen} className="w-full text-left"><div className="flex items-start gap-3"><div className="min-w-12 text-xs font-black">{time(meeting.startsAt)}</div><div className="min-w-0 flex-1"><div className="truncate text-xs font-black">{meeting.title}</div><div className="mt-1 truncate text-[10px] opacity-70">{meeting.location ?? meeting.territory ?? 'Lugar por confirmar'}</div><GoogleSyncLabel state={meeting.googleSync} />{meeting.hasPotentialConflict && <div className={`mt-2 flex items-center gap-1 text-[10px] font-black ${meeting.hasBlockingConflict ? 'text-red-700' : 'text-amber-700'}`}><AlertTriangle size={11} /> {meeting.hasBlockingConflict ? 'Cruce confirmado' : 'Posible cruce'}</div>}{meeting.hasResourceBlock && <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-red-700"><PackageCheck size={11} /> Faltantes de inventario</div>}{travelRisk && <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-red-700"><Route size={11} /> Traslado insuficiente</div>}</div></div></button>{meeting.status === 'requested' && canApprove && <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-current/10 pt-3"><button onClick={onOpen} className="rounded-lg bg-white/60 px-3 py-2 text-[10px] font-black">Revisar contexto</button><button onClick={onApprove} disabled={meeting.hasBlockingConflict || meeting.hasResourceBlock} className="rounded-lg bg-[var(--campaign-accent)] px-3 py-2 text-[10px] font-black text-[var(--campaign-contrast)] disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} className="mr-1 inline" /> {meeting.hasResourceBlock ? 'Resolver faltantes' : calendarConnected ? 'Aprobar y enviar a Google' : 'Aprobar'}</button></div>}</div>;
+    return <div className={`rounded-xl border p-3 transition hover:shadow-sm ${statusStyles[meeting.status] ?? statusStyles.cancelled}`}><button onClick={onOpen} className="w-full text-left"><div className="flex items-start gap-3"><div className="min-w-12 text-xs font-black">{time(meeting.startsAt)}</div><div className="min-w-0 flex-1"><div className="truncate text-xs font-black">{meeting.title}</div><div className="mt-1 truncate text-[10px] opacity-70">{meeting.location ?? meeting.territory ?? 'Lugar por confirmar'}</div>{meeting.status === 'completed' && <div className="mt-2 flex flex-wrap gap-1 text-[10px] font-black opacity-75"><span>{meeting.actualAttendees} asistentes reales</span>{meeting.completedAt && <span>· {formatShortDate(meeting.completedAt)}</span>}</div>}<GoogleSyncLabel state={meeting.googleSync} />{meeting.hasPotentialConflict && <div className={`mt-2 flex items-center gap-1 text-[10px] font-black ${meeting.hasBlockingConflict ? 'text-red-700' : 'text-amber-700'}`}><AlertTriangle size={11} /> {meeting.hasBlockingConflict ? 'Cruce confirmado' : 'Posible cruce'}</div>}{meeting.hasResourceBlock && <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-red-700"><PackageCheck size={11} /> Faltantes de inventario</div>}{travelRisk && <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-red-700"><Route size={11} /> Traslado insuficiente</div>}</div></div></button>{meeting.status === 'requested' && canApprove && <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-current/10 pt-3"><button onClick={onOpen} className="rounded-lg bg-white/60 px-3 py-2 text-[10px] font-black">Revisar contexto</button><button onClick={onApprove} disabled={meeting.hasBlockingConflict || meeting.hasResourceBlock} className="rounded-lg bg-[var(--campaign-accent)] px-3 py-2 text-[10px] font-black text-[var(--campaign-contrast)] disabled:cursor-not-allowed disabled:opacity-40"><Check size={12} className="mr-1 inline" /> {meeting.hasResourceBlock ? 'Resolver faltantes' : calendarConnected ? 'Aprobar y enviar a Google' : 'Aprobar'}</button></div>}{meeting.status === 'approved' && canComplete && <div className="mt-3 flex justify-end border-t border-current/10 pt-3"><button onClick={onComplete} className="rounded-lg bg-white/70 px-3 py-2 text-[10px] font-black text-[var(--campaign-accent)] shadow-sm"><CheckCheck size={12} className="mr-1 inline" /> Marcar realizada</button></div>}</div>;
 }
 
 function GoogleSyncLabel({ state }: { state: Meeting['googleSync'] }) {
@@ -375,8 +406,8 @@ function GoogleSyncLabel({ state }: { state: Meeting['googleSync'] }) {
     return <div className={`mt-2 flex items-center gap-1 text-[9px] font-black uppercase ${state === 'failed' ? 'text-red-700' : 'opacity-65'}`}><Cloud size={10} /> {labels[state]}</div>;
 }
 
-function ReviewDrawer({ meeting, dayMeetings, onClose, onEdit, onDelete, canApprove, canEdit, canDelete, calendarConnected }: {
-    meeting: Meeting; dayMeetings: Meeting[]; onClose: () => void; onEdit: () => void; onDelete: () => void; canApprove: boolean; canEdit: boolean; canDelete: boolean; calendarConnected: boolean;
+function ReviewDrawer({ meeting, dayMeetings, onClose, onEdit, onDelete, onComplete, canApprove, canComplete, canEdit, canDelete, calendarConnected }: {
+    meeting: Meeting; dayMeetings: Meeting[]; onClose: () => void; onEdit: () => void; onDelete: () => void; onComplete: () => void; canApprove: boolean; canComplete: boolean; canEdit: boolean; canDelete: boolean; calendarConnected: boolean;
 }) {
     const [rejecting, setRejecting] = useState(false);
     const [reason, setReason] = useState('');
@@ -395,9 +426,11 @@ function ReviewDrawer({ meeting, dayMeetings, onClose, onEdit, onDelete, canAppr
                 <Info icon={Navigation} label="Dirección" value={meeting.address ?? 'Sin dirección registrada'} />
                 <Info icon={UserRound} label="Líder solicitante" value={meeting.leader ?? 'Sin asignar'} />
                 <Info icon={Users} label="Asistencia prevista" value={`${meeting.expectedAttendees} personas`} />
+                {meeting.status === 'completed' && <Info icon={CheckCheck} label="Asistencia real" value={`${meeting.actualAttendees} personas`} />}
                 <Info icon={MapPin} label="Territorio" value={meeting.territory ?? 'Sin asignar'} />
                 <Info icon={CalendarDays} label="Tipo" value={meeting.type} />
             </section>
+            {meeting.status === 'completed' && <section className="rounded-2xl border border-sky-200 bg-sky-50 p-5"><div className="flex items-start gap-3"><CheckCheck size={20} className="text-sky-700" /><div><h3 className="text-sm font-black text-sky-900">Reunión realizada</h3><p className="mt-1 text-xs leading-5 text-sky-700">Quedó registrada para mediciones de cumplimiento, asistencia y gestión territorial.</p>{meeting.outcome && <p className="mt-3 rounded-xl bg-white/70 p-3 text-xs font-semibold leading-5 text-sky-900">{meeting.outcome}</p>}</div></div></section>}
             {(meeting.address || meeting.latitude != null) && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3"><div><div className="text-xs font-black text-sky-800">Ubicación para desplazamiento</div>{meeting.locationNotes && <div className="mt-1 text-[11px] text-sky-700">{meeting.locationNotes}</div>}</div><a href={mapHref(meeting)} target="_blank" rel="noreferrer" className="secondary-button border-sky-200 bg-white px-3 py-2 text-xs text-sky-800"><Navigation size={14} /> Abrir en mapa</a></div>}
             <section className={`rounded-2xl border p-5 ${meeting.hasResourceBlock ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -415,7 +448,7 @@ function ReviewDrawer({ meeting, dayMeetings, onClose, onEdit, onDelete, canAppr
                 </div>
                 {meeting.hasResourceBlock && <Link href="/inventory?alert=low" className="secondary-button mt-4 w-full justify-center border-red-200 bg-white text-red-700"><PackageCheck size={14} /> Ir al inventario para resolver</Link>}
             </section>
-            <section className="panel flex items-start gap-3 p-4"><div className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700"><Cloud size={16} /></div><div><h3 className="text-xs font-black text-slate-800">Publicación en Google Calendar</h3><GoogleSyncLabel state={meeting.googleSync} /><p className="mt-1 text-[10px] leading-4 text-slate-400">{meeting.status === 'requested' ? (calendarConnected ? 'No necesitas editarla ni hacer otra vinculación: al aprobarla se enviará automáticamente al calendario conectado.' : 'La aprobación es válida localmente; la publicación ocurrirá al conectar un calendario escribible.') : 'Este estado corresponde a la reunión creada en Territorio, no a un evento externo pendiente de autorización.'}</p></div></section>
+            <section className="panel flex items-start gap-3 p-4"><div className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700"><Cloud size={16} /></div><div className="min-w-0 flex-1"><h3 className="text-xs font-black text-slate-800">Publicación en Google Calendar</h3><GoogleSyncLabel state={meeting.googleSync} /><p className="mt-1 text-[10px] leading-4 text-slate-400">{meeting.status === 'requested' ? (calendarConnected ? 'No necesitas editarla ni hacer otra vinculación: al aprobarla se enviará automáticamente al calendario conectado.' : 'La aprobación es válida localmente; la publicación ocurrirá al conectar un calendario escribible.') : meeting.googleSync === 'queued' ? 'La publicación está siendo procesada. Este estado se actualizará automáticamente.' : 'Este estado corresponde a la reunión creada en Territorio, no a un evento externo pendiente de autorización.'}</p>{meeting.googleSync === 'synced' && meeting.googleHtmlLink && <a href={meeting.googleHtmlLink} target="_blank" rel="noreferrer" className="secondary-button mt-3 w-fit px-3 py-2 text-xs"><Cloud size={14} /> Abrir en Google Calendar</a>}</div></section>
             {meeting.objective && <section className="panel p-5"><h3 className="text-xs font-black uppercase tracking-wide text-slate-400">Objetivo</h3><p className="mt-2 text-sm leading-6 text-slate-600">{meeting.objective}</p></section>}
 
             {meeting.pendingChange && canApprove && <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5"><div className="text-sm font-black text-violet-900">Cambio de horario pendiente</div><p className="mt-1 text-xs leading-5 text-violet-700">La agenda vigente y Google Calendar conservan el horario anterior hasta tomar esta decisión.</p><div className="mt-3 rounded-xl bg-white/70 p-3 text-xs font-bold text-violet-900">{meeting.pendingChange.changes.starts_at ? `${formatShortDate(meeting.pendingChange.changes.starts_at)} · ${time(meeting.pendingChange.changes.starts_at)}–${time(meeting.pendingChange.changes.ends_at ?? meeting.pendingChange.changes.starts_at)}` : 'Nuevo horario propuesto'}</div><div className="mt-3 flex justify-end gap-2"><button onClick={() => { const notes = window.prompt('Motivo del rechazo'); if (notes) router.post(`/meeting-changes/${meeting.pendingChange?.id}/reject`, { notes }); }} className="secondary-button border-red-200 text-red-700"><X size={14} /> Rechazar cambio</button><button onClick={() => router.post(`/meeting-changes/${meeting.pendingChange?.id}/approve`)} className="primary-button"><Check size={14} /> Aprobar cambio</button></div></section>}
@@ -430,7 +463,7 @@ function ReviewDrawer({ meeting, dayMeetings, onClose, onEdit, onDelete, canAppr
             <section className="panel p-5"><div className="flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-800">Contexto del día</h3><p className="mt-0.5 text-[11px] text-slate-400">Otras actividades para comparar desplazamientos y tiempos.</p></div><CalendarDays size={18} className="text-[#0d4d4b]" /></div><div className="mt-4 space-y-2">{sameDay.length === 0 && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-400">No hay más actividades ese día.</p>}{sameDay.map((item) => <div key={item.id} className="flex gap-3 rounded-xl bg-slate-50 p-3"><div className="text-xs font-black text-slate-700">{time(item.startsAt)}</div><div className="min-w-0"><div className="truncate text-xs font-bold text-slate-600">{item.title}</div><div className="mt-1 text-[10px] text-slate-400">{item.location ?? 'Lugar por confirmar'}</div></div></div>)}</div></section>
 
             {meeting.status === 'requested' && canApprove && <section className="panel p-5"><h3 className="text-sm font-black text-slate-800">Tomar decisión</h3>{!rejecting ? <div className="mt-4 grid gap-2 sm:grid-cols-2"><button onClick={approve} disabled={meeting.hasBlockingConflict || meeting.hasResourceBlock} className="primary-button justify-center disabled:cursor-not-allowed disabled:opacity-40"><Check size={17} /> {meeting.hasResourceBlock ? 'Resolver faltantes antes de aprobar' : calendarConnected ? 'Aprobar y enviar a Google' : 'Aprobar oportunidad'}</button><button onClick={() => setRejecting(true)} className="secondary-button justify-center border-red-200 text-red-700 hover:bg-red-50"><XCircle size={17} /> Rechazar</button></div> : <div className="mt-4"><label className="label">Motivo del rechazo</label><textarea autoFocus rows={3} className="field resize-none" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explica brevemente por qué no se incorpora a la agenda…" /><div className="mt-3 flex justify-end gap-2"><button onClick={() => setRejecting(false)} className="secondary-button">Cancelar</button><button onClick={reject} disabled={!reason.trim()} className="primary-button bg-red-700 disabled:opacity-40">Confirmar rechazo</button></div></div>}</section>}
-            <div className="flex flex-wrap justify-end gap-2 pb-4">{canEdit && <button onClick={onEdit} className="secondary-button"><Pencil size={15} /> Editar</button>}{canDelete && <button onClick={onDelete} className="secondary-button border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={15} /> Eliminar</button>}</div>
+            <div className="flex flex-wrap justify-end gap-2 pb-4">{meeting.status === 'approved' && canComplete && <button onClick={onComplete} className="primary-button"><CheckCheck size={15} /> Marcar realizada</button>}{canEdit && <button onClick={onEdit} className="secondary-button"><Pencil size={15} /> Editar</button>}{canDelete && <button onClick={onDelete} className="secondary-button border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={15} /> Eliminar</button>}</div>
         </div>
     </aside></div>;
 }

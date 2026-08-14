@@ -1,0 +1,18 @@
+event_schema: "1"
+id: event.google-calendar-review.029
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 29
+previous_event_id: event.google-calendar-review.028
+occurred_at: "2026-08-04T14:12:17Z"
+event_type: task_accepted
+actor: {type: agent, ref: gc-backend}
+subject: {task_id: territorio.google-calendar-sync.review.backend-implementation}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002, gate.material-action:approved]
+evidence_refs:
+  - {id: evidence.backend-implementation-acceptance, type: task.context, locator: codex-agent-message:/root/calendar_backend_assessment}
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: GC-Backend acepto capacidad, alcance, exclusiones, arbol de trabajo existente y gates; no realizo cambios antes del inicio formal.

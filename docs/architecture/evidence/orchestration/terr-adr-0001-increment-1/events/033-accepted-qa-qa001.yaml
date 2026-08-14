@@ -1,0 +1,26 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.033
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 33
+previous_event_id: event.terr-adr-0001.inc1.032
+occurred_at: "2026-08-03T15:42:55Z"
+event_type: task_accepted
+actor:
+  type: agent
+  ref: gc-qa
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.qa-qa001
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+  - gate.material-action:approved
+evidence_refs:
+  - id: evidence.acceptance-qa
+    type: task.context
+    locator: codex-agent-message:/root/qa_verification
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: GC-QA acepto reverificar independientemente QA-001 y la regresion PHP sin editar archivos.

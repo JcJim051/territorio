@@ -1,0 +1,25 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.034
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 34
+previous_event_id: event.terr-adr-0001.inc1.033
+occurred_at: "2026-08-03T15:42:55Z"
+event_type: task_started
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.qa-qa001
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+  - gate.material-action:approved
+evidence_refs:
+  - id: evidence.accepted-event
+    type: orchestration.event
+    locator: events/033-accepted-qa-qa001.yaml
+details:
+  from_state: accepted
+  to_state: in_progress
+  reason: Routing, dependencia Backend y aceptacion validos; QA puede iniciar la reverificacion acotada.

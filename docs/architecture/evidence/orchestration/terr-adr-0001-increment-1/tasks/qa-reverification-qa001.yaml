@@ -1,0 +1,57 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.qa-qa001
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1.qa
+state: completed
+objective: Reverificar independientemente QA-001 y la regresion PHP despues de la correccion Backend, preservando la evidencia PostgreSQL ya obtenida.
+scope:
+  includes:
+    - Reproduccion del flujo HTTP con cola sync que antes respondia 500.
+    - Pruebas positivas y negativas de composicion limitada, aislamiento y limpieza.
+    - Suite PHP completa y verificacion de que el diff correctivo se limita a tres archivos.
+    - Confirmacion de que la evidencia PostgreSQL anterior sigue siendo aplicable al no cambiar esquema ni migraciones.
+  excludes:
+    - Corregir codigo, repetir PostgreSQL o frontend sin evidencia de impacto, y evaluar otros hallazgos.
+    - Produccion, despliegues, datos reales y servicios externos.
+capability:
+  id: quality.verification
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.quality
+  agent_id: gc-qa
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+    - gate.material-action:approved
+  approval_gate_refs:
+    - gate.material-action
+    - gate.release
+constraints:
+  - No modificar codigo, migraciones o pruebas.
+  - Reportar pass, fail o blocked con evidencia independiente.
+  - No desplegar, usar datos reales ni invocar servicios externos.
+context_refs:
+  - id: context.qa-failure
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/qa.yaml
+  - id: context.backend-fix
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/backend-qa001.yaml
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio
+expected_outputs:
+  - Dictamen independiente sobre QA-001 y regresion completa.
+  - Result Envelope valido con responsabilidad gc-qa hacia gc-orchestrator.
+acceptance_criteria:
+  - id: criterion.qa001
+    statement: La reproduccion HTTP con cola sync pasa y conserva el comportamiento esperado del outbox.
+  - id: criterion.isolation
+    statement: Campanas y decisiones incompatibles siguen rechazadas y la limpieza permanece correcta.
+  - id: criterion.regression
+    statement: La suite PHP completa no presenta fallos atribuibles al incremento.
+  - id: criterion.scope
+    statement: La correccion no modifico migraciones ni componentes fuera de QA-001 y la evidencia PostgreSQL sigue aplicable.
+classification: internal

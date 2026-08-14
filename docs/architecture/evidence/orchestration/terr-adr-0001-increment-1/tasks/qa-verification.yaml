@@ -1,0 +1,65 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.qa
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1
+state: failed
+objective: Verificar independientemente la implementacion del piloto multicampana contra TERR-ADR-0001, la propuesta aprobada y el resultado de Backend.
+scope:
+  includes:
+    - Revision del diff y trazabilidad contra los cinco criterios de Backend.
+    - Pruebas PHP especificas y regresion aplicable.
+    - Pruebas PostgreSQL 16 sinteticas de cruces, nulabilidad, eliminacion, NOT VALID, indices y validacion.
+    - Compilacion TypeScript como regresion sin cambios funcionales de interfaz.
+  excludes:
+    - Corregir codigo productivo, redefinir requisitos o aceptar riesgos.
+    - Produccion, despliegues, datos reales y llamadas a servicios externos.
+    - Hallazgos y relaciones fuera del piloto.
+capability:
+  id: quality.verification
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.quality
+  agent_id: gc-qa
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+    - gate.material-action:approved
+  approval_gate_refs:
+    - gate.material-action
+    - gate.release
+constraints:
+  - Verificacion independiente; no modificar codigo productivo, migraciones ni datos persistentes.
+  - Usar solo datos sinteticos y laboratorios desechables.
+  - Reportar pass, fail o blocked con evidencia reproducible; no corregir defectos.
+  - No desplegar ni invocar Google Calendar.
+context_refs:
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: context.proposal
+    type: decision.record
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/reports/propuesta-implementable.md
+  - id: context.backend
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/backend.yaml
+expected_outputs:
+  - Informe independiente con estado por criterio, defectos y evidencia reproducible.
+  - Ejecucion PostgreSQL 16 o bloqueo ambiental demostrado sin sustituirlo por SQLite.
+  - Result Envelope valido con responsabilidad gc-qa hacia gc-orchestrator.
+acceptance_criteria:
+  - id: criterion.contract
+    statement: La implementacion coincide con el alcance y no resuelve decisiones pendientes.
+  - id: criterion.context
+    statement: Contexto, fail-closed, limpieza y separacion de autoridad pasan pruebas positivas y negativas.
+  - id: criterion.jobs
+    statement: Jobs y outbox rechazan discrepancias antes de efectos externos.
+  - id: criterion.database
+    statement: PostgreSQL 16 demuestra las cinco relaciones, nulabilidad y comportamiento de eliminacion.
+  - id: criterion.regression
+    statement: Suite aplicable y compilacion TypeScript no presentan regresiones atribuibles al incremento.
+classification: internal

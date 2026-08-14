@@ -1,0 +1,53 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.architecture
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1
+state: completed
+objective: Revisar la implementabilidad arquitectonica del primer incremento piloto de TERR-ADR-0001 contra el codigo y la evidencia actuales.
+scope:
+  includes:
+    - Limites del incremento piloto y cambios minimos de aplicacion necesarios.
+    - Contexto de alcance tipado, resolucion de autoridad y compatibilidad de flujos HTTP, jobs e integraciones solo donde toque el piloto.
+    - Riesgos, secuencia reversible, pruebas y archivos posiblemente afectados.
+  excludes:
+    - Implementacion, edicion de archivos, migraciones, datos y despliegues.
+    - RLS y decisiones pendientes de producto.
+capability:
+  id: architecture.review
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.architecture
+  agent_id: gc-architect
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+  approval_gate_refs:
+    - gate.task-acceptance
+    - gate.material-action
+constraints:
+  - Solo lectura y sin datos reales.
+  - No ampliar el alcance ni resolver decisiones pendientes.
+context_refs:
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio@d5452b0ad1295315920477f1cf1bc025be0a9e1d
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: context.preflight
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md
+expected_outputs:
+  - Result Envelope valido con evidencia, limitaciones, incertidumbre y responsabilidad.
+  - Recomendacion arquitectonica acotada y secuencia de cambios reversible.
+  - Lista de archivos posiblemente afectados, sin modificarlos.
+acceptance_criteria:
+  - id: criterion.evidence
+    statement: Cada afirmacion material esta verificada contra codigo, esquema o evidencia actual.
+  - id: criterion.scope
+    statement: La recomendacion se limita estrictamente a las tres relaciones piloto y soporte minimo requerido.
+  - id: criterion.reversibility
+    statement: Distingue reversion de aplicacion, constraints y datos migrados.
+classification: internal

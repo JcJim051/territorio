@@ -7,6 +7,8 @@ use App\Models\Meeting;
 use App\Models\MeetingRequirement;
 use App\Models\Reservation;
 use App\Models\Resource;
+use App\Notifications\CampaignActivityNotification;
+use App\Support\CampaignNotifier;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -218,9 +220,10 @@ class MeetingResourceService
                 'updated_at' => now(),
             ];
 
-            $existing
-                ? DB::table('shortage_tasks')->where('id', $existing->id)->update($values)
-                : DB::table('shortage_tasks')->insert([
+            if ($existing) {
+                DB::table('shortage_tasks')->where('id', $existing->id)->update($values);
+            } else {
+                DB::table('shortage_tasks')->insert([
                     'campaign_id' => $meeting->campaign_id,
                     'meeting_id' => $meeting->id,
                     'resource_id' => $shortage['resourceId'],
@@ -228,6 +231,18 @@ class MeetingResourceService
                     'created_at' => now(),
                     ...$values,
                 ]);
+                app(CampaignNotifier::class)->notifyPermission(
+                    $meeting->campaign_id,
+                    'inventory.manage',
+                    new CampaignActivityNotification(
+                        $meeting->campaign_id,
+                        'Faltante de inventario',
+                        "Para {$meeting->title} faltan {$shortage['missing']} {$shortage['unit']} de {$shortage['name']}.",
+                        '/inventory?alert=low',
+                        'inventory',
+                    ),
+                );
+            }
         }
 
         return $analysis;

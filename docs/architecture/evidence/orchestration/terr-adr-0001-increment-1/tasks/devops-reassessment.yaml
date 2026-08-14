@@ -1,0 +1,52 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.devops-final
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1.devops
+state: completed
+objective: Actualizar el dictamen operativo usando la evidencia PostgreSQL 16 y la correccion QA-001 ya reverificada, sin repetir diagnosticos ni desplegar.
+scope:
+  includes:
+    - Determinar que bloqueos iniciales quedaron resueltos por QA y cuales permanecen para una futura activacion.
+    - Confirmar el estado final del incremento local frente al estado de release.
+    - Conservar la secuencia de colas, migraciones, validacion, observabilidad y reversion ya propuesta.
+  excludes:
+    - Modificar archivos o infraestructura, ejecutar pruebas, desplegar, aceptar riesgos o ampliar el piloto.
+capability:
+  id: deployment.readiness.assessment
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.devops
+  agent_id: gc-devops
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+    - gate.material-action:approved
+  approval_gate_refs:
+    - gate.release
+constraints:
+  - Revision documental de nueva evidencia; no ejecutar ni modificar nada.
+  - Diferenciar implementacion local verificada de preparacion para release.
+  - No aceptar riesgos ni abrir gate.release.
+context_refs:
+  - id: context.devops-initial
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/devops.yaml
+  - id: context.qa-postgres
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/qa.yaml
+  - id: context.qa-final
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/qa-qa001.yaml
+expected_outputs:
+  - Dictamen actualizado con bloqueos resueltos, pendientes y estado de release.
+  - Result Envelope valido con responsabilidad gc-devops hacia gc-orchestrator.
+acceptance_criteria:
+  - id: criterion.resolved
+    statement: El dictamen incorpora correctamente PostgreSQL 16 pass y QA-001 pass.
+  - id: criterion.remaining
+    statement: Los riesgos de colas, timeouts, validacion y observabilidad permanecen trazables sin presentarlos como corregidos.
+  - id: criterion.release
+    statement: Se diferencia implementacion verificada de release y no se abre gate.release.
+classification: internal

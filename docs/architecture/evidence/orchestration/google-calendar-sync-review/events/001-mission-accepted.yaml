@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.001
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 1
+occurred_at: "2026-08-03T21:23:17Z"
+event_type: mission_accepted
+actor: {type: human, ref: gravity-core.owner}
+subject: {task_id: territorio.google-calendar-sync.review}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.user-invocation, type: task.context, locator: codex-user-message:gc-orchestrator-2026-08-03}
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: El propietario invoco GC-Orchestrator para revisar formalmente el incremento ejecutado fuera del flujo delegado.

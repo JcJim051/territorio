@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.022
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 22
+previous_event_id: event.google-calendar-review.021
+occurred_at: "2026-08-03T21:34:13Z"
+event_type: task_started
+actor: {type: agent, ref: gc-orchestrator}
+subject: {task_id: territorio.google-calendar-sync.review.devops}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.devops-accepted-event, type: orchestration.event, locator: events/019-accepted-devops.yaml}
+details:
+  from_state: accepted
+  to_state: in_progress
+  reason: Routing y aceptacion son validos; DevOps puede evaluar readiness y reversion.

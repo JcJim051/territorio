@@ -1,0 +1,56 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.data
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1
+state: completed
+objective: Revisar el modelo, DDL y migraciones del primer incremento piloto de TERR-ADR-0001 contra PostgreSQL y el esquema actuales.
+scope:
+  includes:
+    - Membresia-rol, asistencia-reunion-persona y evento-conexion-reunion.
+    - Nulabilidad, comportamiento de eliminacion, indices, FK compuestas NOT VALID, validacion y preflight.
+    - Riesgos de datos, compatibilidad, reversion separada y pruebas PostgreSQL sinteticas.
+  excludes:
+    - Implementacion, edicion de archivos, remediacion de datos y despliegues.
+    - RLS, recursos compartidos y otras relaciones fuera del piloto.
+capability:
+  id: data.isolation.assessment
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.data
+  agent_id: gc-data
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+  approval_gate_refs:
+    - gate.task-acceptance
+    - gate.material-action
+constraints:
+  - Solo lectura y sin datos reales.
+  - Preservar nulabilidad y comportamiento de eliminacion existentes.
+context_refs:
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio@d5452b0ad1295315920477f1cf1bc025be0a9e1d
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: context.preflight
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md
+  - id: context.preflight-sql
+    type: test.evidence
+    locator: database/preflight/tenant-isolation-pilot.sql
+expected_outputs:
+  - Result Envelope valido con evidencia, limitaciones, incertidumbre y responsabilidad.
+  - DDL conceptual y plan de migraciones incremental y reversible.
+  - Matriz de pruebas PostgreSQL con datos sinteticos.
+acceptance_criteria:
+  - id: criterion.schema
+    statement: La propuesta se verifica contra nulabilidad, claves e instrucciones de eliminacion actuales.
+  - id: criterion.integrity
+    statement: Cada relacion piloto tiene una garantia PostgreSQL conceptualmente valida contra cruces de campana.
+  - id: criterion.reversibility
+    statement: Se separan claramente rollback de aplicacion, constraints y remediacion de datos.
+classification: internal

@@ -1,0 +1,77 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.backend-qa001
+classification: internal
+state: completed
+summary: >-
+  QA-001 fue corregido mediante una composicion limitada del contexto autorizado:
+  un contexto HTTP respaldado por membresia activa puede ejecutar un evento outbox
+  durable de la misma campana sin reemplazar ni limpiar prematuramente el contexto
+  propietario. Las campanas distintas y las decisiones propietarias incompatibles
+  continuan siendo rechazadas.
+artifacts:
+  - id: artifact.qa001-runner
+    type: source.code
+    locator: app/Support/Tenancy/AuthorizedContextRunner.php
+  - id: artifact.qa001-outbox
+    type: source.code
+    locator: app/Jobs/ProcessCalendarOutbox.php
+  - id: artifact.qa001-tests
+    type: test.source
+    locator: tests/Feature/AuthorizedCampaignContextTest.php
+evidence_refs:
+  - id: evidence.qa001-reproduction-before
+    type: test.evidence
+    locator: "inline:AdminCrudAndDecisionQueueTest reproduced HTTP 500 caused by nested execution context"
+  - id: evidence.qa001-specific-after
+    type: test.evidence
+    locator: "inline:23 tests passed, 212 assertions"
+  - id: evidence.qa001-regression
+    type: test.evidence
+    locator: "inline:61 tests passed, 530 assertions"
+  - id: evidence.qa001-syntax
+    type: test.evidence
+    locator: "inline:PHP syntax passed for runner, outbox job and context tests"
+verifications:
+  - criterion_id: criterion.sync-flow
+    status: pass
+    evidence_refs:
+      - evidence.qa001-reproduction-before
+      - evidence.qa001-specific-after
+      - evidence.qa001-regression
+  - criterion_id: criterion.isolation
+    status: pass
+    evidence_refs:
+      - artifact.qa001-tests
+      - evidence.qa001-specific-after
+  - criterion_id: criterion.cleanup
+    status: pass
+    evidence_refs:
+      - artifact.qa001-runner
+      - evidence.qa001-specific-after
+  - criterion_id: criterion.regression
+    status: pass
+    evidence_refs:
+      - evidence.qa001-specific-after
+      - evidence.qa001-regression
+  - criterion_id: criterion.scope
+    status: pass
+    evidence_refs:
+      - artifact.qa001-runner
+      - artifact.qa001-outbox
+      - artifact.qa001-tests
+effects:
+  - Aprobar una reunion con QUEUE_CONNECTION=sync deja de responder 500.
+  - El contexto HTTP propietario permanece activo durante el procesamiento sincrono.
+  - El runner propietario conserva la responsabilidad de limpiar el contexto en finally.
+  - Un contexto outbox autonomo continua activandose y limpiandose normalmente.
+  - Otra campana, un propietario outbox u otra decision incompatible siguen fallando cerrados.
+  - IDs y source continuan sin conceder autoridad.
+limitations:
+  - La composicion nueva se limita expresamente a membership como propietario y outbox_event como contexto hijo.
+  - No se evaluo compatibilidad historica de otros jobs o colas porque esta excluida del Task Envelope.
+  - No se repitio PostgreSQL ni frontend porque QA-001 no modifica esquema ni interfaz.
+uncertainty:
+  - Ninguna incertidumbre material permanece dentro del alcance especifico de QA-001.
+responsibility:
+  current: gc-backend
+  recipient: gc-orchestrator

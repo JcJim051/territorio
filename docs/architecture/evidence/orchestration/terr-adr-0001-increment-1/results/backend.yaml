@@ -1,0 +1,83 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.backend
+classification: internal
+state: completed
+summary: >-
+  Se implemento la correccion minima del piloto multicampana: contexto autorizado
+  tipado, limpieza garantizada, referencias durables en jobs de calendario,
+  validaciones previas a adaptadores externos, indices y cinco FK compuestas
+  PostgreSQL NOT VALID, ademas de pruebas PHP y una suite PostgreSQL protegida
+  para laboratorio desechable.
+artifacts:
+  - id: artifact.tenant-context
+    type: source.code
+    locator: app/Support/Tenancy
+  - id: artifact.pilot-indexes
+    type: schema.migration
+    locator: database/migrations/2026_08_03_000100_add_tenant_isolation_pilot_indexes.php
+  - id: artifact.pilot-constraints
+    type: schema.migration
+    locator: database/migrations/2026_08_03_000200_add_tenant_isolation_pilot_constraints.php
+  - id: artifact.context-tests
+    type: test.source
+    locator: tests/Feature/AuthorizedCampaignContextTest.php
+  - id: artifact.postgres-tests
+    type: test.source
+    locator: tests/Postgres/TenantIsolationPilotTest.php
+  - id: artifact.postgres-config
+    type: test.configuration
+    locator: phpunit.postgres.xml
+evidence_refs:
+  - id: evidence.php-specific-suite
+    type: test.evidence
+    locator: "inline:19 tests passed, 139 assertions"
+  - id: evidence.php-syntax
+    type: test.evidence
+    locator: "inline:syntax checks passed for new tenancy, jobs, migrations and tests"
+  - id: evidence.postgres-attempt
+    type: test.evidence
+    locator: "inline:initdb blocked by sandbox shared-memory restriction; no server started"
+verifications:
+  - criterion_id: criterion.context
+    status: pass
+    evidence_refs:
+      - evidence.php-specific-suite
+  - criterion_id: criterion.jobs
+    status: pass
+    evidence_refs:
+      - evidence.php-specific-suite
+  - criterion_id: criterion.database
+    status: not_evaluated
+    evidence_refs:
+      - artifact.pilot-constraints
+      - artifact.postgres-tests
+      - evidence.postgres-attempt
+  - criterion_id: criterion.compatibility
+    status: pass
+    evidence_refs:
+      - evidence.php-specific-suite
+  - criterion_id: criterion.scope
+    status: pass
+    evidence_refs:
+      - artifact.tenant-context
+      - artifact.pilot-constraints
+effects:
+  - El runner acepta unicamente AuthorizedExecutionContext y limpia el store en finally.
+  - CurrentCampaign deriva de la misma resolucion autorizada.
+  - Los jobs piloto transportan campaign_id y una referencia durable.
+  - Las operaciones de calendario fallan cerradas ante discrepancias antes de invocar Google.
+  - El outbox inconsistente permanece sin publicar y registra el fallo.
+  - Las migraciones incorporan nueve indices y cinco FK compuestas NOT VALID.
+  - Organizacion y operacion global son representables, pero ningun resolver las emite.
+limitations:
+  - El DDL y la semantica de eliminacion no pudieron ejecutarse en PostgreSQL 16.
+  - No se ejecuto la suite completa ni la compilacion TypeScript.
+  - La migracion de validacion de constraints no se incluyo deliberadamente; requiere un paso y gate posteriores.
+  - No se evaluaron relaciones distintas de las tres del piloto.
+uncertainty:
+  - La compatibilidad ejecutable de ON DELETE SET NULL con lista selectiva debe confirmarse mediante la suite PostgreSQL 16.
+  - Debe verificarse pg_index.indisvalid y convalidated en el laboratorio objetivo.
+  - La politica de usuarios con varias membresias continua sin resolverse y no fue codificada.
+responsibility:
+  current: gc-backend
+  recipient: gc-orchestrator

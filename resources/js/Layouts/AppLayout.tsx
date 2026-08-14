@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Boxes,
+    Bell,
     CalendarDays,
     ChevronDown,
     CircleGauge,
@@ -16,6 +17,7 @@ import {
     UsersRound,
     Car,
     ClipboardList,
+    Globe2,
     SlidersHorizontal,
     Share2,
     X,
@@ -40,13 +42,15 @@ const administration = [
     { label: 'Roles y permisos', href: '/admin/roles', icon: Shield, permission: 'roles.view' },
     { label: 'Google Calendar', href: '/calendar/settings', icon: Cloud, permission: 'calendar.sync.view' },
     { label: 'Cambios de calendario', href: '/calendar/reviews', icon: CalendarDays, permission: 'calendar.changes.review' },
+    { label: 'Página pública', href: '/campaign/public-site', icon: Globe2, permission: 'public_site.manage' },
     { label: 'Configuración operativa', href: '/campaign/settings/operations', icon: SlidersHorizontal, permission: 'campaign.settings.manage' },
     { label: 'Auditoría', href: '/admin/audit', icon: ClipboardList, permission: 'audit.view' },
 ];
 
 export default function AppLayout({ children, title, eyebrow }: PropsWithChildren<{ title: string; eyebrow?: string }>) {
-    const { auth, currentCampaign, campaigns, flash } = usePage<SharedProps>().props;
+    const { auth, currentCampaign, campaigns, flash, notifications } = usePage<SharedProps>().props;
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [notificationsOpen, setNotificationsOpen] = useState(false);
     const path = window.location.pathname;
     const can = (permission: string) => currentCampaign?.permissions.includes('*') || currentCampaign?.permissions.includes(permission);
     const campaignColor = currentCampaign?.themeColor ?? '#0D4D4B';
@@ -100,7 +104,7 @@ export default function AppLayout({ children, title, eyebrow }: PropsWithChildre
                 {currentCampaign?.isSuperAdmin && <div className="mt-2 px-1 text-[9px] font-bold uppercase tracking-[.13em] text-teal-100/35">Vista global · cambia de campaña aquí</div>}
             </div>
 
-            <nav className="flex-1 space-y-1 px-3">
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,.28)_transparent]">
                 <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-teal-100/40">Operación</div>
                 {navigation.filter((item) => can(item.permission)).map((item) => {
                     const active = item.href === '/' ? path === '/' : path.startsWith(item.href);
@@ -167,6 +171,38 @@ export default function AppLayout({ children, title, eyebrow }: PropsWithChildre
                         <Search size={16} />
                         <span className="pr-16">Buscar en la campaña</span>
                         <kbd className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px]">⌘ K</kbd>
+                    </div>
+                    <div className="relative">
+                        <button onClick={() => setNotificationsOpen(!notificationsOpen)} className="relative rounded-xl border border-black/5 bg-white p-2.5 text-slate-500 shadow-sm" aria-label="Notificaciones">
+                            <Bell size={18} />
+                            {notifications.unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-black leading-5 text-white">{notifications.unread > 99 ? '99+' : notifications.unread}</span>}
+                        </button>
+                        {notificationsOpen && (
+                            <div className="absolute right-0 top-12 z-30 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                                    <div>
+                                        <div className="text-xs font-black text-slate-800">Notificaciones</div>
+                                        <div className="text-[10px] font-semibold text-slate-400">{currentCampaign?.candidateName}</div>
+                                    </div>
+                                    {notifications.unread > 0 && <button onClick={() => router.post('/notifications/read-all', {}, { preserveScroll: true })} className="text-[10px] font-black text-[var(--campaign-accent)]">Marcar leídas</button>}
+                                </div>
+                                <div className="max-h-96 overflow-auto p-2">
+                                    {notifications.latest.map((notification) => (
+                                        <button key={notification.id} onClick={() => { setNotificationsOpen(false); router.post(`/notifications/${notification.id}/read`, {}, { preserveScroll: true, onSuccess: () => router.visit(notification.href) }); }} className={`block w-full rounded-xl px-3 py-3 text-left transition hover:bg-slate-50 ${notification.readAt ? 'opacity-65' : 'bg-[var(--campaign-accent-soft)]'}`}>
+                                            <div className="flex items-start gap-2">
+                                                {!notification.readAt && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-[var(--campaign-accent)]" />}
+                                                <div className="min-w-0">
+                                                    <div className="truncate text-xs font-black text-slate-800">{notification.title}</div>
+                                                    <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500">{notification.message}</div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                    {notifications.latest.length === 0 && <div className="py-8 text-center text-xs font-semibold text-slate-400">No hay notificaciones para esta campaña.</div>}
+                                </div>
+                                <Link href="/notifications" onClick={() => setNotificationsOpen(false)} className="block border-t border-slate-100 px-4 py-3 text-center text-xs font-black text-[var(--campaign-accent)]">Ver bandeja completa</Link>
+                            </div>
+                        )}
                     </div>
                     {can('users.view') && <Link href="/admin/users" className="rounded-xl border border-black/5 bg-white p-2.5 text-slate-500 shadow-sm" aria-label="Administración"><Settings2 size={18} /></Link>}
                 </header>

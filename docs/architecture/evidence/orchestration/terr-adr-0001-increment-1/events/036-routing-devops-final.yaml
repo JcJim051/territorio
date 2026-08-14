@@ -1,0 +1,28 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.036
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 36
+previous_event_id: event.terr-adr-0001.inc1.035
+occurred_at: "2026-08-03T15:44:50Z"
+event_type: routing_decided
+actor:
+  type: agent
+  ref: gc-orchestrator
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.devops-final
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.composition
+    type: organization.composition
+    locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml
+  - id: evidence.qa-final
+    type: result.envelope
+    locator: results/qa-qa001.yaml
+details:
+  capability: deployment.readiness.assessment
+  position_id: position.devops
+  agent_id: gc-devops
+  reason: La evidencia QA posterior resuelve parte del dictamen inicial y DevOps debe actualizar el estado sin abrir release.

@@ -1,0 +1,95 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1.devops
+classification: internal
+state: completed
+summary: >-
+  Dictamen NOT_READY: la estrategia es coherente de forma estatica, pero faltan
+  evidencia ejecutable PostgreSQL 16, transicion segura de jobs serializados,
+  timeouts y recuperacion de indices, validacion de constraints y un runbook de
+  activacion/reversion observable. No se desplego ni se acepto riesgo.
+artifacts:
+  - id: artifact.readiness-assessment
+    type: review.report
+    locator: inline:gc-devops-final-response
+  - id: artifact.activation-sequence
+    type: operations.runbook
+    locator: inline:gc-devops-final-response
+  - id: artifact.rollback-sequence
+    type: operations.runbook
+    locator: inline:gc-devops-final-response
+evidence_refs:
+  - id: evidence.task
+    type: task.context
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/tasks/devops-readiness.yaml
+  - id: evidence.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: evidence.backend
+    type: test.evidence
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1/results/backend.yaml
+  - id: evidence.index-migration
+    type: schema.migration
+    locator: database/migrations/2026_08_03_000100_add_tenant_isolation_pilot_indexes.php
+  - id: evidence.constraint-migration
+    type: schema.migration
+    locator: database/migrations/2026_08_03_000200_add_tenant_isolation_pilot_constraints.php
+  - id: evidence.postgres-suite
+    type: test.source
+    locator: tests/Postgres/TenantIsolationPilotTest.php
+  - id: evidence.postgres-config
+    type: test.configuration
+    locator: phpunit.postgres.xml
+  - id: evidence.compose
+    type: test.configuration
+    locator: docker-compose.yml
+  - id: evidence.compose-validation
+    type: test.evidence
+    locator: "inline:docker compose config --quiet exit 0"
+  - id: evidence.docker-blocker
+    type: test.evidence
+    locator: "inline:docker compose ps exit 1; Docker daemon unavailable"
+  - id: evidence.static-validation
+    type: test.evidence
+    locator: "inline:git diff --check and PHP syntax checks passed"
+  - id: evidence.job-payloads
+    type: source.code
+    locator: app/Jobs
+verifications:
+  - criterion_id: criterion.migrations
+    status: fail
+    evidence_refs:
+      - evidence.index-migration
+      - evidence.constraint-migration
+      - evidence.docker-blocker
+  - criterion_id: criterion.rollback
+    status: fail
+    evidence_refs:
+      - evidence.job-payloads
+      - artifact.rollback-sequence
+  - criterion_id: criterion.environment
+    status: pass
+    evidence_refs:
+      - evidence.compose-validation
+      - evidence.docker-blocker
+      - evidence.postgres-config
+  - criterion_id: criterion.release
+    status: pass
+    evidence_refs:
+      - artifact.activation-sequence
+      - evidence.task
+effects:
+  - No se modificaron archivos, infraestructura, esquema o datos persistentes.
+  - No se desplego, promovio ni llamo a servicios externos.
+  - Se mantuvo cerrado el gate de release y no se acepto riesgo residual.
+limitations:
+  - Docker no estaba disponible y no se ejecuto PostgreSQL 16.
+  - No se recibio todavia un resultado QA postimplementacion para incorporar a este dictamen.
+  - No se observaron colas, volumenes, locks ni tiempos de un entorno real.
+  - No existe migracion de VALIDATE CONSTRAINT en este incremento.
+uncertainty:
+  - El DDL selectivo SET NULL y su interaccion con cascadas deben demostrarse en PostgreSQL 16.
+  - La duracion de indices, locks y validaciones depende de volumenes no observados.
+  - La cantidad y antiguedad de jobs serializados en futuros entornos no se conoce.
+responsibility:
+  current: gc-devops
+  recipient: gc-orchestrator

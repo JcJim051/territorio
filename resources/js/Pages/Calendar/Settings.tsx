@@ -12,13 +12,19 @@ type Connection = {
 type ServiceConfiguration = {
     clientId?: string; secretConfigured: boolean; redirectUri: string; webhookUrl?: string; updatedAt?: string;
 };
+type SyncRun = {
+    id: string; trigger: string; status: 'queued' | 'running' | 'succeeded' | 'failed';
+    counts?: { examined?: number; created?: number; updated?: number; unchanged?: number };
+    errorCode?: string; message?: string; queuedAt?: string; startedAt?: string; finishedAt?: string;
+};
 
-export default function CalendarSettings({ connection, calendars, configured, serviceConfiguration, permissions }: {
+export default function CalendarSettings({ connection, calendars, configured, serviceConfiguration, permissions, syncRuns }: {
     connection: Connection | null;
     calendars: CalendarOption[];
     configured: boolean;
     serviceConfiguration: ServiceConfiguration | null;
     permissions: { manage: boolean; viewSync: boolean; configureServices: boolean };
+    syncRuns: SyncRun[];
 }) {
     const { currentCampaign } = usePage<SharedProps>().props;
     const form = useForm({ calendar_id: connection?.calendarId ?? '' });
@@ -28,6 +34,8 @@ export default function CalendarSettings({ connection, calendars, configured, se
         redirect_uri: serviceConfiguration?.redirectUri ?? '',
         webhook_url: serviceConfiguration?.webhookUrl ?? '',
     });
+    const activeSync = syncRuns.find((run) => ['queued', 'running'].includes(run.status));
+    const latestSync = syncRuns[0];
     useEffect(() => {
         form.setData('calendar_id', connection?.calendarId ?? '');
         form.clearErrors();
@@ -39,6 +47,14 @@ export default function CalendarSettings({ connection, calendars, configured, se
         });
         serviceForm.clearErrors();
     }, [currentCampaign?.id]);
+    useEffect(() => {
+        if (!activeSync) return;
+        const timer = window.setInterval(() => {
+            router.reload({ only: ['connection', 'syncRuns'], preserveScroll: true, preserveState: true });
+        }, 2500);
+
+        return () => window.clearInterval(timer);
+    }, [activeSync?.id, activeSync?.status]);
     const selectCalendar = (event: React.FormEvent) => {
         event.preventDefault();
         form.post('/calendar/select', { preserveScroll: true });
@@ -175,11 +191,13 @@ export default function CalendarSettings({ connection, calendars, configured, se
 
                         {connection?.status === 'active' && permissions.manage && (
                             <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-5">
-                                <button onClick={() => router.post('/calendar/sync')} className="primary-button"><RefreshCw size={16} /> Sincronizar ahora</button>
+                                <button onClick={() => router.post('/calendar/sync', {}, { preserveScroll: true })} disabled={!!activeSync} className="primary-button disabled:cursor-wait disabled:opacity-60"><RefreshCw size={16} className={activeSync ? 'animate-spin' : ''} /> {activeSync ? 'Sincronizando…' : 'Sincronizar ahora'}</button>
                                 <Link href="/calendar/reviews?status=pending" className="secondary-button"><CalendarCheck2 size={16} /> Revisar cambios</Link>
                                 <button onClick={disconnect} className="secondary-button border-red-200 text-red-700"><Unplug size={16} /> Desconectar</button>
                             </div>
                         )}
+
+                        {permissions.viewSync && latestSync && <SyncRunCard run={latestSync} />}
                     </div>
                 </section>
 
@@ -218,4 +236,22 @@ function formatElection(value: string): string {
 }
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
     return <div><label className="label">{label}</label>{children}{error && <p className="mt-1 text-xs font-bold text-red-600">{error}</p>}</div>;
+}
+function SyncRunCard({ run }: { run: SyncRun }) {
+    const succeeded = run.status === 'succeeded';
+    const failed = run.status === 'failed';
+    const tone = succeeded
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+        : failed
+            ? 'border-red-200 bg-red-50 text-red-800'
+            : 'border-sky-200 bg-sky-50 text-sky-800';
+    const status = succeeded ? 'Completada' : failed ? 'Fallida' : run.status === 'running' ? 'Procesando' : 'En cola';
+
+    return <div className={`rounded-xl border p-4 ${tone}`}>
+        <div className="flex items-center gap-2 text-xs font-black"><RefreshCw size={14} className={!succeeded && !failed ? 'animate-spin' : ''} /> Última sincronización · {status}</div>
+        <p className="mt-1 text-xs leading-5 opacity-80">{run.message}</p>
+        {run.counts && <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-bold"><span>{run.counts.examined ?? 0} revisados</span><span>{run.counts.created ?? 0} nuevos</span><span>{run.counts.updated ?? 0} actualizados</span><span>{run.counts.unchanged ?? 0} sin cambios</span></div>}
+        {run.finishedAt && <div className="mt-2 text-[9px] font-bold uppercase opacity-55">Finalizó {formatDate(run.finishedAt)}</div>}
+        {run.errorCode === 'reconnect_required' && <a href="/calendar/oauth/redirect" className="mt-3 inline-flex rounded-lg bg-red-700 px-3 py-2 text-xs font-black text-white">Volver a vincular Google</a>}
+    </div>;
 }

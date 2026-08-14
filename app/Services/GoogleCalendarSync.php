@@ -9,26 +9,38 @@ use App\Models\ExternalCalendarEvent;
 use App\Models\Meeting;
 use App\Models\SyncCursor;
 use App\Notifications\CalendarChangePendingNotification;
+use App\Support\Tenancy\ExecutionContextStore;
 use Carbon\Carbon;
+use Closure;
 use Google\Service\Calendar\Event;
+use Google\Service\Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class GoogleCalendarSync
 {
-    public function __construct(private readonly GoogleCalendarClientFactory $factory)
-    {
-    }
+    public function __construct(
+        private readonly GoogleCalendarClientFactory $factory,
+        private readonly ExecutionContextStore $contextStore,
+    ) {}
 
-    public function sync(CalendarConnection $connection, bool $forceFull = false): void
+    public function sync(CalendarConnection $connection, bool $forceFull = false, ?Closure $heartbeat = null): array
     {
+        $this->contextStore->assertCampaign((int) $connection->campaign_id);
+
         if (! $connection->isReady()) {
-            return;
+            return ['examined' => 0, 'created' => 0, 'updated' => 0, 'unchanged' => 0];
         }
 
+        $counts = ['examined' => 0, 'created' => 0, 'updated' => 0, 'unchanged' => 0];
+
         $stream = 'connection:'.$connection->id.':events';
-        $cursor = SyncCursor::where('system', 'google_calendar')->where('stream', $stream)->first();
+        $cursor = SyncCursor::query()
+            ->where('campaign_id', $connection->campaign_id)
+            ->where('calendar_connection_id', $connection->id)
+            ->where('system', 'google_calendar')
+            ->where('stream', $stream)
+            ->first();
         $full = $forceFull || ! $cursor?->cursor;
         $params = [
             'singleEvents' => true,
@@ -48,16 +60,21 @@ class GoogleCalendarSync
             $pageToken = null;
             $nextSyncToken = null;
             do {
+                $heartbeat?->__invoke();
                 if ($pageToken) {
                     $params['pageToken'] = $pageToken;
                 }
                 $result = $service->events->listEvents($connection->calendar_id, $params);
                 foreach ($result->getItems() as $event) {
-                    $this->importEvent($connection, $event);
+                    $outcome = $this->importEvent($connection, $event);
+                    $counts['examined']++;
+                    $counts[$outcome]++;
                 }
                 $pageToken = $result->getNextPageToken();
                 $nextSyncToken = $result->getNextSyncToken() ?: $nextSyncToken;
             } while ($pageToken);
+
+            $heartbeat?->__invoke();
 
             SyncCursor::updateOrCreate(
                 ['system' => 'google_calendar', 'stream' => $stream],
@@ -73,14 +90,14 @@ class GoogleCalendarSync
                 ],
             );
             $connection->forceFill(['last_synced_at' => now(), 'last_error' => null])->save();
-        } catch (\Google\Service\Exception $exception) {
+
+            return $counts;
+        } catch (Exception $exception) {
             if (! $full && $exception->getCode() === 410) {
                 $cursor?->delete();
-                $this->sync($connection->fresh(), true);
 
-                return;
+                return $this->sync($connection->fresh(), true);
             }
-            $connection->forceFill(['last_error' => Str::limit($exception->getMessage(), 4000)])->save();
             throw $exception;
         }
     }
@@ -133,16 +150,18 @@ class GoogleCalendarSync
         ];
     }
 
-    private function importEvent(CalendarConnection $connection, Event $googleEvent): void
+    private function importEvent(CalendarConnection $connection, Event $googleEvent): string
     {
+        $this->contextStore->assertCampaign((int) $connection->campaign_id);
         $data = $this->normalizeEvent($googleEvent, $connection);
         $private = $googleEvent->getExtendedProperties()?->getPrivate() ?? [];
         $meeting = isset($private['territorio_meeting_id'])
             ? Meeting::where('campaign_id', $connection->campaign_id)->find((int) $private['territorio_meeting_id'])
             : null;
 
-        DB::transaction(function () use ($connection, $data, $meeting) {
+        return DB::transaction(function () use ($connection, $data, $meeting) {
             $event = ExternalCalendarEvent::withTrashed()
+                ->where('campaign_id', $connection->campaign_id)
                 ->where('calendar_connection_id', $connection->id)
                 ->where('external_event_id', $data['external_event_id'])
                 ->where('instance_key', $data['instance_key'])
@@ -165,11 +184,11 @@ class GoogleCalendarSync
                     $this->createReview($connection, $event, 'created', null, $this->reviewPayload($event));
                 }
 
-                return;
+                return 'created';
             }
 
             if ($event->etag === $data['etag']) {
-                return;
+                return 'unchanged';
             }
 
             $event->restore();
@@ -188,7 +207,7 @@ class GoogleCalendarSync
             if ($meeting && ! $cancelled && $this->matchesMeeting($event, $meeting)) {
                 $event->update(['review_status' => 'approved']);
 
-                return;
+                return 'updated';
             }
 
             $this->createReview(
@@ -198,6 +217,8 @@ class GoogleCalendarSync
                 $before,
                 $this->reviewPayload($event),
             );
+
+            return 'updated';
         });
     }
 
@@ -208,7 +229,14 @@ class GoogleCalendarSync
         ?array $before,
         ?array $after,
     ): void {
+        $this->contextStore->assertCampaign((int) $connection->campaign_id);
+        $this->contextStore->assertCampaign((int) $event->campaign_id);
+        if ($event->meeting_id) {
+            $this->contextStore->assertCampaign((int) $event->meeting?->campaign_id);
+        }
+
         CalendarChangeReview::where('external_calendar_event_id', $event->id)
+            ->where('campaign_id', $connection->campaign_id)
             ->where('status', 'pending')
             ->update(['status' => 'superseded']);
 
@@ -240,6 +268,7 @@ class GoogleCalendarSync
 
     private function notifyReviewers(CalendarChangeReview $review): void
     {
+        $this->contextStore->assertCampaign((int) $review->campaign_id);
         CampaignMembership::with(['user', 'role'])
             ->where('campaign_id', $review->campaign_id)
             ->where('is_active', true)

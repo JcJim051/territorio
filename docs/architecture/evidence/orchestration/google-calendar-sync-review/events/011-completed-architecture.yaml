@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.011
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 11
+previous_event_id: event.google-calendar-review.010
+occurred_at: "2026-08-03T21:31:06Z"
+event_type: task_completed
+actor: {type: agent, ref: gc-architect}
+subject: {task_id: territorio.google-calendar-sync.review.architecture}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.architecture-result, type: result.envelope, locator: results/architecture.yaml}
+details:
+  from_state: in_progress
+  to_state: completed
+  reason: GC-Architect completo revision de solo lectura y califico ambos criterios como fail.

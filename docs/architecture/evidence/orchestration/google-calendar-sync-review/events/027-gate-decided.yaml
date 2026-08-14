@@ -1,0 +1,19 @@
+event_schema: "1"
+id: event.google-calendar-review.027
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 27
+previous_event_id: event.google-calendar-review.026
+occurred_at: "2026-08-04T14:09:34Z"
+event_type: gate_decided
+actor: {type: human, ref: gravity-core.owner}
+subject:
+  task_id: territorio.google-calendar-sync.review
+  gate_id: gate.material-action
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002]
+evidence_refs:
+  - {id: evidence.user-approval, type: task.context, locator: codex-user-message:approved-using-agents-2026-08-04}
+  - {id: evidence.proposal, type: decision.record, locator: reports/propuesta-correccion.md}
+details:
+  decision: approved
+  reason: El propietario aprobo explicitamente implementar la correccion consolidada usando agentes especializados.

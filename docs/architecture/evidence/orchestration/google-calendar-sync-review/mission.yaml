@@ -1,0 +1,63 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review
+correlation_id: territorio-google-calendar-sync-review-20260803
+state: in_progress
+objective: Coordinar una revision independiente del incremento de seguimiento durable de Google Calendar implementado bajo TERR-ADR-0002.
+scope:
+  includes:
+    - Revision de arquitectura, datos, seguridad, backend, calidad y preparacion operativa del incremento ya implementado.
+    - Verificacion de aislamiento por campana, OAuth, jobs, outbox, deduplicacion, estados y reversion.
+    - Consolidacion de evidencia, contradicciones, defectos y recomendaciones priorizadas.
+  excludes:
+    - Modificaciones de codigo, esquema o datos durante esta mision de revision.
+    - Llamadas a Google Calendar, uso de datos reales, secretos o credenciales.
+    - Produccion, despliegues, ampliaciones funcionales y refactorizaciones ajenas.
+capability:
+  id: organization.mission-orchestration
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.orchestration
+  agent_id: gc-orchestrator
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0002
+  approval_gate_refs:
+    - gate.task-acceptance
+    - gate.material-action
+    - gate.risk-exception
+    - gate.release
+constraints:
+  - Los especialistas solo pueden revisar y producir evidencia; no corregir.
+  - Cualquier efecto material requiere un gate humano posterior y una nueva tarea.
+  - No ocultar resultados contradictorios ni sustituir una verificacion faltante.
+context_refs:
+  - id: context.composition
+    type: organization.composition
+    locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md
+  - id: context.tests
+    type: test.evidence
+    locator: tests/Feature/GoogleCalendarIntegrationTest.php
+expected_outputs:
+  - Tareas, eventos y resultados validos y correlacionados.
+  - Revisiones especializadas independientes con evidencia reproducible.
+  - Informe consolidado con estado, riesgos, defectos y gate humano final.
+acceptance_criteria:
+  - id: criterion.trace
+    statement: Routing, aceptacion, inicio y resultado de cada especialista quedan persistidos en orden.
+  - id: criterion.scope
+    statement: Ningun especialista modifica codigo, esquema, datos ni servicios externos.
+  - id: criterion.coverage
+    statement: Arquitectura, Datos, Seguridad, Backend, QA y DevOps emiten resultado independiente.
+  - id: criterion.isolation
+    statement: La revision cubre aislamiento por campana en ejecuciones, conexiones, jobs e interfaz.
+  - id: criterion.consolidation
+    statement: El informe final conserva desacuerdos, incertidumbre y decisiones humanas pendientes.
+classification: internal

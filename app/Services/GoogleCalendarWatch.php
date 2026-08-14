@@ -4,16 +4,20 @@ namespace App\Services;
 
 use App\Models\CalendarConnection;
 use Google\Service\Calendar\Channel;
+use App\Support\Tenancy\ExecutionContextStore;
 use Illuminate\Support\Str;
 
 class GoogleCalendarWatch
 {
-    public function __construct(private readonly GoogleCalendarClientFactory $factory)
-    {
+    public function __construct(
+        private readonly GoogleCalendarClientFactory $factory,
+        private readonly ExecutionContextStore $contextStore,
+    ) {
     }
 
     public function renew(CalendarConnection $connection): void
     {
+        $this->contextStore->assertCampaign((int) $connection->campaign_id);
         $configuration = $this->factory->configurationForCampaign($connection->campaign_id);
         $webhookUrl = (string) ($configuration->settings['webhook_url'] ?? '');
         if (! $connection->isReady() || ! str_starts_with($webhookUrl, 'https://')) {

@@ -40,8 +40,28 @@ class CalendarConnection extends Model
         return $this->hasMany(CalendarChangeReview::class);
     }
 
+    public function syncRuns(): HasMany
+    {
+        return $this->hasMany(CalendarSyncRun::class);
+    }
+
     public function isReady(): bool
     {
         return $this->status === 'active' && filled($this->calendar_id) && filled($this->refresh_token);
+    }
+
+    public function markReconnectRequired(): void
+    {
+        $this->forceFill([
+            'status' => 'reconnect_required',
+            'access_token' => null,
+            'refresh_token' => null,
+            'token_expires_at' => null,
+            'last_error' => 'Google revocó la autorización. Vuelve a vincular la cuenta.',
+            'watch_channel_id' => null,
+            'watch_resource_id' => null,
+            'watch_token_hash' => null,
+            'watch_expires_at' => null,
+        ])->save();
     }
 }

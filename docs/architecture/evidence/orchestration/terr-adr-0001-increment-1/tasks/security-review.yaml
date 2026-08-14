@@ -1,0 +1,54 @@
+task_schema: "1"
+id: territorio.terr-adr-0001.increment-1.security
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+parent_task_id: territorio.terr-adr-0001.increment-1
+state: completed
+objective: Revisar amenazas y controles del primer incremento piloto de TERR-ADR-0001 contra el codigo y la evidencia actuales.
+scope:
+  includes:
+    - Amenazas de lectura, escritura y relaciones cruzadas en las tres relaciones piloto.
+    - Autoridad verificable del contexto, jobs y fallos de limpieza estrictamente necesarios para el piloto.
+    - Riesgos, controles, pruebas negativas y criterios de bloqueo.
+  excludes:
+    - Explotacion, implementacion, edicion de archivos, aceptacion de riesgo y despliegues.
+    - Evaluaciones generales ajenas al aislamiento multicampana piloto.
+capability:
+  id: security.control-assessment
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.security
+  agent_id: gc-security
+governance:
+  profile: supervised
+  authority_refs:
+    - gravity-core.owner
+    - TERR-ADR-0001
+  approval_gate_refs:
+    - gate.task-acceptance
+    - gate.material-action
+    - gate.risk-exception
+constraints:
+  - Metodos no destructivos, solo lectura y sin datos reales.
+  - No aceptar riesgo ni ampliar el alcance.
+context_refs:
+  - id: context.repository
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio@d5452b0ad1295315920477f1cf1bc025be0a9e1d
+  - id: context.adr
+    type: decision.record
+    locator: docs/architecture/decisions/TERR-ADR-0001-alcance-autorizado-y-consistencia-multicampana.md
+  - id: context.preflight
+    type: test.evidence
+    locator: docs/architecture/evidence/2026-07-31-tenant-isolation-pilot.md
+expected_outputs:
+  - Result Envelope valido con evidencia, limitaciones, incertidumbre y responsabilidad.
+  - Modelo de amenazas acotado con controles y pruebas negativas priorizadas.
+  - Criterios de bloqueo y riesgos residuales para el gate material.
+acceptance_criteria:
+  - id: criterion.evidence
+    statement: Los hallazgos se respaldan en rutas y comportamiento verificables del repositorio actual.
+  - id: criterion.threats
+    statement: Se cubren lectura, escritura, relaciones, contexto y ejecucion asincrona dentro del piloto.
+  - id: criterion.scope
+    statement: No se evalua ni recomienda trabajo fuera del piloto aprobado.
+classification: internal

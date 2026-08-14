@@ -1,0 +1,37 @@
+result_schema: "1"
+task_id: territorio.google-calendar-sync.review.backend
+classification: internal
+state: completed
+summary: >-
+  Todos los P1/P2 fueron confirmados contra codigo. La correccion minima es
+  incremental: compatibilidad segura de jobs legados, outbox por campana con
+  resultado tipado, ID externo determinista, clasificador de fallos, FK
+  compuesta y lease atomico para runs. No requiere borrar eventos Google.
+artifacts: []
+evidence_refs:
+  - {id: evidence.jobs, type: source.repository, locator: app/Jobs}
+  - {id: evidence.dispatcher, type: source.repository, locator: app/Services/CalendarSyncDispatcher.php}
+  - {id: evidence.publisher, type: source.repository, locator: app/Services/GoogleCalendarPublisher.php}
+  - {id: evidence.migration, type: source.repository, locator: database/migrations/2026_08_03_000300_create_calendar_sync_runs_table.php}
+  - {id: evidence.tests, type: test.evidence, locator: "calendar and context tests: 20 passed, 120 assertions; 3 legacy payloads reproduced as incompatible"}
+verifications:
+  - {criterion_id: criterion.reproducibility, status: pass, evidence_refs: [evidence.jobs, evidence.dispatcher, evidence.publisher, evidence.tests]}
+  - {criterion_id: criterion.reversibility, status: pass, evidence_refs: [evidence.migration, evidence.dispatcher]}
+effects:
+  - "BE-GCAL-001 P1: hacer campaignId nullable en jobs legados y resolver solo desde referencia durable; fallar cerrado."
+  - "BE-GCAL-002 P1: fan-out y lock outbox por campana; published_at solo para confirmed o terminal_noop."
+  - "BE-GCAL-003 P1: ID de evento determinista y adopcion segura ante 409 para cerrar duplicados."
+  - "BE-GCAL-004 P1: clasificador central y excepciones sanitizadas sin respuesta externa cruda."
+  - "BE-GCAL-005 P2: distinguir auth definitiva, cuota, red, 5xx y errores permanentes."
+  - "BE-GCAL-006 P1: FK compuesta campana-conexion, primero NOT VALID en PostgreSQL."
+  - "BE-GCAL-007 P2: lease, heartbeat, compare-and-set y recuperador de runs huerfanos."
+  - "BE-GCAL-008 P2: estado y enlace derivados de mapping de la conexion activa."
+  - "Reversion: aplicacion primero, jobs drenados, restricciones separadas y conservar historial por defecto."
+  - No se modificaron archivos, esquema, datos, colas ni servicios externos.
+limitations:
+  - No se probo concurrencia PostgreSQL ni se llamo Google.
+  - La propuesta necesita gate material antes de implementarse.
+uncertainty:
+  - Se desconoce el inventario de jobs legados en otros entornos.
+  - Umbrales de lease y retencion requieren decision operativa.
+responsibility: {current: gc-backend, recipient: gc-orchestrator}

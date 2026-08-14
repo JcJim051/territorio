@@ -1,0 +1,33 @@
+result_schema: "1"
+task_id: territorio.google-calendar-sync.review.security
+classification: internal
+state: completed
+summary: >-
+  Los controles de cifrado, OAuth state, webhook, contexto y autorizacion son
+  solidos, pero el gate no esta satisfecho: respuestas externas crudas pueden
+  persistirse y mostrarse, la clasificacion de errores de autenticacion es
+  incompleta y falta la FK compuesta campana-conexion.
+artifacts: []
+evidence_refs:
+  - {id: evidence.token-model, type: source.code, locator: app/Models/CalendarConnection.php:13}
+  - {id: evidence.oauth-controller, type: source.code, locator: app/Http/Controllers/GoogleCalendarConnectionController.php:159}
+  - {id: evidence.sync-error, type: source.code, locator: app/Services/GoogleCalendarSync.php:97}
+  - {id: evidence.outbox-error, type: source.code, locator: app/Jobs/ProcessCalendarOutbox.php:93}
+  - {id: evidence.webhook, type: source.code, locator: app/Http/Controllers/GoogleCalendarWebhookController.php:14}
+  - {id: evidence.context, type: source.code, locator: app/Support/Tenancy/CampaignContextResolver.php:17}
+  - {id: evidence.tests, type: test.evidence, locator: "calendar and context tests: 20 passed, 120 assertions"}
+verifications:
+  - {criterion_id: criterion.secrets, status: fail, evidence_refs: [evidence.token-model, evidence.sync-error, evidence.outbox-error]}
+  - {criterion_id: criterion.authorization, status: fail, evidence_refs: [evidence.oauth-controller, evidence.webhook, evidence.context, evidence.tests]}
+effects:
+  - "SEC-GCAL-001 media/alta: errores externos crudos pueden persistirse y mostrarse o llegar a failed_jobs."
+  - "SEC-GCAL-002 media/media: 401 y authError fuera del refresh pueden tratarse como temporales."
+  - "SEC-GCAL-003 baja/alta: falta FK compuesta de pertenencia comun."
+  - No se modificaron archivos, configuracion, esquema ni datos y no se contacto Google.
+limitations:
+  - No se inspeccionaron datos, logs ni credenciales reales.
+  - No se simularon invalid_grant, 401, cuota, red o 5xx.
+uncertainty:
+  - Las probabilidades son estimaciones cualitativas, no metricas de incidentes.
+  - No se demostro exposicion de tokens; si persistencia de respuestas no confiables.
+responsibility: {current: gc-security, recipient: gc-orchestrator}

@@ -1,0 +1,18 @@
+event_schema: "1"
+id: event.google-calendar-review.030
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 30
+previous_event_id: event.google-calendar-review.029
+occurred_at: "2026-08-04T14:12:18Z"
+event_type: task_started
+actor: {type: agent, ref: gc-orchestrator}
+subject: {task_id: territorio.google-calendar-sync.review.backend-implementation}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002, gate.material-action:approved]
+evidence_refs:
+  - {id: evidence.backend-implementation-accepted-event, type: orchestration.event, locator: events/029-accepted-backend-implementation.yaml}
+  - {id: evidence.human-gate, type: orchestration.event, locator: events/027-gate-decided.yaml}
+details:
+  from_state: accepted
+  to_state: in_progress
+  reason: El gate material y la aceptacion especializada son validos; GC-Backend puede implementar la correccion minima aprobada.

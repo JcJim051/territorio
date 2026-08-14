@@ -1,0 +1,18 @@
+event_schema: "1"
+id: event.google-calendar-review.004
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 4
+previous_event_id: event.google-calendar-review.003
+occurred_at: "2026-08-03T21:23:20Z"
+event_type: routing_decided
+actor: {type: agent, ref: gc-orchestrator}
+subject: {task_id: territorio.google-calendar-sync.review.security}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002, TERR-ADR-0001]
+evidence_refs:
+  - {id: evidence.composition, type: organization.composition, locator: /Applications/XAMPP/xamppfiles/htdocs/agents/organizations/gravity-core-agency/compositions/territorio-pilot.yaml}
+details:
+  capability: security.change-review
+  position_id: position.security
+  agent_id: gc-security
+  reason: OAuth, credenciales revocadas, webhooks y aislamiento requieren revision de position.security.

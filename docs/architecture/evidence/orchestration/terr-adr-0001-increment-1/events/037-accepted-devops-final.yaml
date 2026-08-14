@@ -1,0 +1,25 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.037
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 37
+previous_event_id: event.terr-adr-0001.inc1.036
+occurred_at: "2026-08-03T15:46:33Z"
+event_type: task_accepted
+actor:
+  type: agent
+  ref: gc-devops
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.devops-final
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.acceptance-devops
+    type: task.context
+    locator: codex-agent-message:/root/devops_readiness
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: GC-DevOps acepto actualizar documentalmente el dictamen sin ejecucion, release ni aceptacion de riesgo.

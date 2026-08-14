@@ -6,15 +6,17 @@ use App\Jobs\ApplyCalendarReviewRejection;
 use App\Jobs\SyncGoogleCalendarConnection;
 use App\Models\CalendarChangeReview;
 use App\Models\CalendarConnection;
+use App\Models\CalendarSyncRun;
 use App\Models\Campaign;
 use App\Models\CampaignMembership;
 use App\Models\CampaignRole;
 use App\Models\CampaignServiceCredential;
 use App\Models\ExternalCalendarEvent;
 use App\Models\Meeting;
-use App\Models\MeetingChangeRequest;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\CalendarSyncDispatcher;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -90,7 +92,7 @@ class GoogleCalendarIntegrationTest extends TestCase
         $this->actingAs($admin)
             ->post("/calendar/reviews/{$review->public_id}/reject", ['notes' => 'No pertenece a la agenda'])
             ->assertSessionDoesntHaveErrors();
-        Queue::assertPushed(ApplyCalendarReviewRejection::class, fn ($job) => $job->reviewId === $review->id);
+        Queue::assertPushed(ApplyCalendarReviewRejection::class, fn ($job) => $job->campaignId === $campaign->id && $job->reviewId === $review->id);
         $this->assertDatabaseHas('calendar_change_reviews', ['id' => $review->id, 'status' => 'rejected']);
         $this->assertDatabaseHas('external_calendar_events', ['id' => $event->id, 'review_status' => 'rejection_pending']);
     }
@@ -117,7 +119,63 @@ class GoogleCalendarIntegrationTest extends TestCase
             'X-Goog-Resource-ID' => 'resource-1',
             'X-Goog-Channel-Token' => 'secret-token',
         ])->assertNoContent();
-        Queue::assertPushed(SyncGoogleCalendarConnection::class, fn ($job) => $job->connectionId === $connection->id);
+        Queue::assertPushed(SyncGoogleCalendarConnection::class, fn ($job) => $job->campaignId === $campaign->id && $job->connectionId === $connection->id);
+        $this->assertDatabaseHas('calendar_sync_runs', [
+            'campaign_id' => $campaign->id,
+            'calendar_connection_id' => $connection->id,
+            'trigger' => 'webhook',
+            'status' => 'queued',
+        ]);
+    }
+
+    public function test_repeated_sync_requests_share_one_active_run_and_one_job(): void
+    {
+        [$campaign, $admin] = $this->context();
+        $connection = $this->connection($campaign, $admin);
+        Queue::fake();
+
+        $dispatcher = app(CalendarSyncDispatcher::class);
+        $first = $dispatcher->dispatch($connection, 'manual', $admin->id);
+        $second = $dispatcher->dispatch($connection, 'manual', $admin->id);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(1, CalendarSyncRun::where('campaign_id', $campaign->id)->count());
+        Queue::assertPushed(SyncGoogleCalendarConnection::class, 1);
+    }
+
+    public function test_calendar_settings_only_exposes_sync_runs_from_the_active_campaign(): void
+    {
+        [$campaign, $admin, $organization] = $this->context();
+        [$otherCampaign, $otherAdmin] = $this->context($organization, 'otra-sync');
+        $connection = $this->connection($campaign, $admin);
+        $otherConnection = $this->connection($otherCampaign, $otherAdmin, 'other-sync@example.test');
+        $this->syncRun($campaign, $connection, 'succeeded');
+        $this->syncRun($otherCampaign, $otherConnection, 'failed');
+
+        $this->actingAs($admin)->get('/calendar/settings')
+            ->assertInertia(fn ($page) => $page
+                ->has('syncRuns', 1)
+                ->where('syncRuns.0.status', 'succeeded'));
+    }
+
+    public function test_not_ready_connection_finishes_a_tracked_run_without_retrying(): void
+    {
+        [$campaign, $admin] = $this->context();
+        $connection = $this->connection($campaign, $admin);
+        $connection->update([
+            'status' => 'reconnect_required',
+            'access_token' => null,
+            'refresh_token' => null,
+        ]);
+        $run = $this->syncRun($campaign, $connection, 'queued', active: true);
+
+        $job = new SyncGoogleCalendarConnection($campaign->id, $connection->id, false, $run->id);
+        app()->call([$job, 'handle']);
+
+        $run->refresh();
+        $this->assertSame('failed', $run->status);
+        $this->assertSame('connection_not_ready', $run->error_code);
+        $this->assertNull($run->active_key);
     }
 
     public function test_same_google_calendar_cannot_be_assigned_to_two_campaigns(): void
@@ -126,7 +184,7 @@ class GoogleCalendarIntegrationTest extends TestCase
         [$otherCampaign, $otherAdmin] = $this->context($organization, 'otra');
         $this->connection($campaign, $admin, 'candidate@example.test');
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->connection($otherCampaign, $otherAdmin, 'candidate@example.test');
     }
 
@@ -338,6 +396,20 @@ class GoogleCalendarIntegrationTest extends TestCase
             'fingerprint' => hash('sha256', $event->external_event_id),
             'after_payload' => ['title' => $event->title],
             'status' => 'pending',
+        ]);
+    }
+
+    private function syncRun(Campaign $campaign, CalendarConnection $connection, string $status, bool $active = false): CalendarSyncRun
+    {
+        return CalendarSyncRun::create([
+            'public_id' => (string) Str::ulid(),
+            'campaign_id' => $campaign->id,
+            'calendar_connection_id' => $connection->id,
+            'trigger' => 'manual',
+            'status' => $status,
+            'active_key' => $active ? $campaign->id.':'.$connection->id : null,
+            'queued_at' => now(),
+            'finished_at' => $active ? null : now(),
         ]);
     }
 }

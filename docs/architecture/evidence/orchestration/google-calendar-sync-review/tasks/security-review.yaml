@@ -1,0 +1,34 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review.security
+correlation_id: territorio-google-calendar-sync-review-20260803
+parent_task_id: territorio.google-calendar-sync.review
+state: completed
+objective: Revisar seguridad de OAuth, tokens, errores, autorizacion y aislamiento del incremento.
+scope:
+  includes:
+    - Manejo de refresh tokens revocados y transicion reconnect_required.
+    - Exposicion de secretos en UI, logs, tablas, excepciones y auditoria.
+    - Autorizacion de sincronizacion manual, webhook, jobs y acceso por campana.
+  excludes:
+    - Pruebas intrusivas, llamadas a Google, correcciones o aceptacion de riesgo.
+capability:
+  id: security.change-review
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.security
+  agent_id: gc-security
+governance:
+  profile: supervised
+  authority_refs: [gravity-core.owner, TERR-ADR-0002, TERR-ADR-0001]
+  approval_gate_refs: [gate.material-action, gate.risk-exception]
+constraints:
+  - Analisis no destructivo y sin revelar credenciales.
+context_refs:
+  - {id: context.repository, type: source.repository, locator: /Applications/XAMPP/xamppfiles/htdocs/territorio}
+  - {id: context.adr, type: decision.record, locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md}
+expected_outputs:
+  - Result Envelope con amenazas, controles, severidad y evidencia segura.
+acceptance_criteria:
+  - {id: criterion.secrets, statement: Tokens y respuestas OAuth no se exponen ni persisten fuera de campos cifrados.}
+  - {id: criterion.authorization, statement: Cada entrada de sincronizacion conserva autorizacion y aislamiento por campana.}
+classification: internal

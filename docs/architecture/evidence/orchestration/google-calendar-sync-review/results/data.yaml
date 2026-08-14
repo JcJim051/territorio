@@ -1,0 +1,32 @@
+result_schema: "1"
+task_id: territorio.google-calendar-sync.review.data
+classification: internal
+state: completed
+summary: >-
+  El camino nominal conserva campana mediante aplicacion, pero la base no
+  garantiza pertenencia comun entre calendar_sync_runs y calendar_connections.
+  Tampoco protege el ciclo de vida ni recupera ejecuciones huerfanas; retencion
+  y reversion de datos siguen pendientes.
+artifacts: []
+evidence_refs:
+  - {id: evidence.migration, type: source.repository, locator: database/migrations/2026_08_03_000300_create_calendar_sync_runs_table.php}
+  - {id: evidence.parent-index, type: source.repository, locator: database/migrations/2026_08_03_000100_add_tenant_isolation_pilot_indexes.php}
+  - {id: evidence.dispatcher, type: source.repository, locator: app/Services/CalendarSyncDispatcher.php}
+  - {id: evidence.model, type: source.repository, locator: app/Models/CalendarSyncRun.php}
+  - {id: evidence.tests, type: test.evidence, locator: "php artisan test tests/Feature/GoogleCalendarIntegrationTest.php: 12 passed, 93 assertions"}
+verifications:
+  - {criterion_id: criterion.integrity, status: fail, evidence_refs: [evidence.migration, evidence.parent-index, evidence.dispatcher]}
+  - {criterion_id: criterion.lifecycle, status: fail, evidence_refs: [evidence.migration, evidence.model, evidence.tests]}
+effects:
+  - "P1: FKs independientes permiten una relacion campana-conexion cruzada."
+  - "P1: una caida entre commit y dispatch o un worker abortado puede bloquear active_key indefinidamente."
+  - "P2: status, trigger, tiempos y active_key no tienen restricciones de integridad."
+  - "P2: no existe politica aprobada de retencion ni umbral de ejecucion huerfana."
+  - No se modificaron archivos, esquema ni datos.
+limitations:
+  - No se ejecutaron pruebas destructivas ni DDL PostgreSQL.
+  - La tabla SQLite local estaba vacia.
+uncertainty:
+  - Se desconoce si otros entornos contienen relaciones cruzadas o runs antiguos.
+  - Sigue pendiente decidir el comportamiento de force_full concurrente.
+responsibility: {current: gc-data, recipient: gc-orchestrator}

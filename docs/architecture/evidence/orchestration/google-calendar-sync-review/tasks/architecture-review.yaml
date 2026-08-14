@@ -1,0 +1,34 @@
+task_schema: "1"
+id: territorio.google-calendar-sync.review.architecture
+correlation_id: territorio-google-calendar-sync-review-20260803
+parent_task_id: territorio.google-calendar-sync.review
+state: completed
+objective: Revisar la coherencia arquitectonica entre TERR-ADR-0002 y el incremento implementado.
+scope:
+  includes:
+    - Limites entre dispatcher, job, sync, outbox, conexion y UI.
+    - Compatibilidad con TERR-ADR-0001 y jobs serializados anteriores.
+    - Alternativas, consecuencias y riesgos residuales del diseno.
+  excludes:
+    - Modificar archivos, redefinir producto o aprobar riesgos.
+capability:
+  id: architecture.review
+  version_constraint: ">=0.1.0 <0.2.0"
+assignment:
+  position_id: position.architecture
+  agent_id: gc-architect
+governance:
+  profile: supervised
+  authority_refs: [gravity-core.owner, TERR-ADR-0002]
+  approval_gate_refs: [gate.material-action]
+constraints:
+  - Solo lectura y evidencia reproducible.
+context_refs:
+  - {id: context.repository, type: source.repository, locator: /Applications/XAMPP/xamppfiles/htdocs/territorio}
+  - {id: context.adr, type: decision.record, locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md}
+expected_outputs:
+  - Result Envelope con hallazgos priorizados, compatibilidad y recomendacion.
+acceptance_criteria:
+  - {id: criterion.contract, statement: "La implementacion coincide con las decisiones e invariantes del ADR."}
+  - {id: criterion.compatibility, statement: "La revision identifica riesgos de jobs anteriores, concurrencia y reversion."}
+classification: internal

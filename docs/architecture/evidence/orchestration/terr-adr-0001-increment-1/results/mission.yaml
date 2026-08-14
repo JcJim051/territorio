@@ -1,0 +1,78 @@
+result_schema: "1"
+task_id: territorio.terr-adr-0001.increment-1
+classification: internal
+state: completed
+summary: >-
+  El primer incremento piloto de TERR-ADR-0001 fue implementado y verificado
+  localmente: contexto autorizado tipado, jobs endurecidos y cinco relaciones
+  compuestas demostradas en PostgreSQL 16.6. QA-001 fue detectado, corregido y
+  reverificado con 61 pruebas PHP y 530 aserciones en verde. No hubo produccion,
+  datos reales ni release; DevOps mantiene gate.release cerrado.
+artifacts:
+  - id: artifact.final-report
+    type: review.report
+    locator: reports/resultado-final.md
+  - id: artifact.implementation
+    type: source.repository
+    locator: /Applications/XAMPP/xamppfiles/htdocs/territorio
+  - id: artifact.trace
+    type: orchestration.record
+    locator: docs/architecture/evidence/orchestration/terr-adr-0001-increment-1
+evidence_refs:
+  - id: evidence.backend
+    type: result.envelope
+    locator: results/backend.yaml
+  - id: evidence.qa-postgres
+    type: result.envelope
+    locator: results/qa.yaml
+  - id: evidence.backend-qa001
+    type: result.envelope
+    locator: results/backend-qa001.yaml
+  - id: evidence.qa-final
+    type: result.envelope
+    locator: results/qa-qa001.yaml
+  - id: evidence.devops-final
+    type: result.envelope
+    locator: results/devops-final.yaml
+  - id: evidence.material-gate
+    type: orchestration.event
+    locator: events/015-gate-decided.yaml
+verifications:
+  - criterion_id: criterion.scope
+    status: pass
+    evidence_refs:
+      - evidence.backend
+      - evidence.qa-final
+  - criterion_id: criterion.trace
+    status: pass
+    evidence_refs:
+      - artifact.trace
+      - evidence.material-gate
+  - criterion_id: criterion.specialists
+    status: pass
+    evidence_refs:
+      - evidence.backend
+      - evidence.qa-postgres
+      - evidence.qa-final
+      - evidence.devops-final
+  - criterion_id: criterion.material-gate
+    status: pass
+    evidence_refs:
+      - evidence.material-gate
+effects:
+  - Se modifico la aplicacion, migraciones y pruebas dentro del alcance aprobado.
+  - PostgreSQL 16.6 demostro las cinco relaciones piloto con datos sinteticos.
+  - QA-001 fue detectado, corregido y reverificado de forma independiente.
+  - No se desplego, no se uso produccion y no se invocaron servicios externos.
+  - El laboratorio PostgreSQL temporal fue detenido y eliminado.
+limitations:
+  - El incremento no incluye validacion operativa automatica de constraints en un release.
+  - No se probaron colas historicas, volumenes, locks o tiempos de un entorno real.
+  - Gate.release permanece cerrado y la preparacion operativa es una mision futura.
+uncertainty:
+  - Se desconoce el backlog de jobs serializados que existira en un futuro entorno.
+  - La duracion de indices y VALIDATE CONSTRAINT depende de volumenes no observados.
+  - Las decisiones de usuarios multicampana, alcance organizacional, recursos compartidos y RLS siguen pendientes.
+responsibility:
+  current: gc-orchestrator
+  recipient: gravity-core.owner

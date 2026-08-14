@@ -1,0 +1,36 @@
+result_schema: "1"
+task_id: territorio.google-calendar-sync.review.devops
+classification: internal
+state: completed
+summary: >-
+  NOT_READY. La migracion es aditiva, pero no existe ruta operacional segura:
+  timeout, retry_after y TTL se contradicen; hay jobs legados incompatibles,
+  runs huerfanos, outbox global, orden de migracion inseguro y ausencia de
+  observabilidad y rollback ejecutable.
+artifacts: []
+evidence_refs:
+  - {id: evidence.adr, type: decision.record, locator: docs/architecture/decisions/TERR-ADR-0002-seguimiento-durable-google-calendar.md}
+  - {id: evidence.sync-job, type: source.code, locator: app/Jobs/SyncGoogleCalendarConnection.php}
+  - {id: evidence.outbox, type: source.code, locator: app/Jobs/ProcessCalendarOutbox.php}
+  - {id: evidence.queue, type: operations.configuration, locator: config/queue.php}
+  - {id: evidence.compose, type: operations.configuration, locator: docker-compose.yml}
+  - {id: evidence.readme, type: operations.runbook, locator: README.md}
+verifications:
+  - {criterion_id: criterion.readiness, status: fail, evidence_refs: [evidence.sync-job, evidence.outbox, evidence.queue, evidence.compose]}
+  - {criterion_id: criterion.rollback, status: fail, evidence_refs: [evidence.adr, evidence.readme]}
+effects:
+  - "P1: Redis retry_after 90s es menor que worker timeout 120s y lock 110s; desarrollo usa timeout 0."
+  - "P1: jobs legados, runs huerfanos y outbox global carecen de ruta segura de drenaje/recuperacion."
+  - "P1: README inicia codigo nuevo antes de migrate, permitiendo workers contra esquema viejo."
+  - "P2: faltan healthchecks, heartbeats, metricas de lag, locks, outbox y runs."
+  - "P2: GOOGLE_CALENDAR_POLL_MINUTES no gobierna el scheduler fijo de dos minutos."
+  - "Activacion recomendada: backup/preflight, expand schema, app, workers compatibles, scheduler al final, smoke y observacion."
+  - "Rollback recomendado: detener productores, drenar/cuarentenar jobs, revertir app y conservar tabla/historial."
+  - No se operaron servicios, colas, configuracion, esquema, datos ni Google.
+limitations:
+  - Evaluacion estatica; no se midieron locks, duraciones o volumen real.
+  - No se conoce el inventario de jobs ni migraciones de otros entornos.
+uncertainty:
+  - Los tiempos seguros deben fijarse con p95/p99 y latencia real.
+  - Se desconoce si Redis/cache es compartido entre replicas objetivo.
+responsibility: {current: gc-devops, recipient: gc-orchestrator}

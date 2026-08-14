@@ -1,0 +1,25 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.006
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 6
+previous_event_id: event.terr-adr-0001.inc1.005
+occurred_at: "2026-08-03T13:46:34Z"
+event_type: task_accepted
+actor:
+  type: agent
+  ref: gc-data
+subject:
+  task_id: territorio.terr-adr-0001.increment-1.data
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.acceptance-data
+    type: task.context
+    locator: codex-agent-message:/root/data_review
+details:
+  from_state: proposed
+  to_state: accepted
+  decision: accepted
+  reason: GC-Data confirmo capacidad, alcance piloto, clasificacion y modo solo lectura.

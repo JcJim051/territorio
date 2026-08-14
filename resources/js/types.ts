@@ -23,6 +23,18 @@ export type SharedProps = {
         isSuperAdmin: boolean;
     } | null;
     campaigns: CampaignSummary[];
+    notifications: {
+        unread: number;
+        latest: Array<{
+            id: string;
+            title: string;
+            message: string;
+            href: string;
+            category: string;
+            readAt?: string;
+            createdAt?: string;
+        }>;
+    };
     flash: { success?: string; error?: string };
     errors: Record<string, string>;
 };

@@ -2,27 +2,40 @@
 
 namespace App\Services;
 
+use App\Enums\CalendarPublicationResult;
+use App\Exceptions\CalendarPublicationDeferred;
+use App\Exceptions\GoogleCalendarSafeFailure;
 use App\Models\CalendarConnection;
 use App\Models\ExternalCalendarEvent;
 use App\Models\IntegrationMapping;
 use App\Models\Meeting;
+use App\Support\Tenancy\ExecutionContextStore;
+use Google\Service\Calendar;
 use Google\Service\Calendar\Event;
+use Google\Service\Exception as GoogleServiceException;
+use Illuminate\Support\Facades\DB;
 
 class GoogleCalendarPublisher
 {
-    public function __construct(private readonly GoogleCalendarClientFactory $factory)
-    {
-    }
+    public function __construct(
+        private readonly GoogleCalendarClientFactory $factory,
+        private readonly ExecutionContextStore $contextStore,
+    ) {}
 
-    public function upsert(Meeting $meeting): void
+    public function upsert(Meeting $meeting): CalendarPublicationResult
     {
+        $this->contextStore->assertCampaign((int) $meeting->campaign_id);
+        if ($meeting->status !== 'approved') {
+            return CalendarPublicationResult::TerminalNoop;
+        }
+
         $connection = CalendarConnection::query()
             ->where('campaign_id', $meeting->campaign_id)
             ->where('status', 'active')
             ->first();
 
-        if (! $connection?->isReady() || $meeting->status !== 'approved') {
-            return;
+        if (! $connection?->isReady()) {
+            throw new CalendarPublicationDeferred;
         }
 
         $service = $this->factory->service($connection);
@@ -34,61 +47,74 @@ class GoogleCalendarPublisher
             ->first();
 
         $event = new Event($this->payload($meeting));
-        if ($mapping) {
+        $mappingBelongsToActiveCalendar = $mapping
+            && (string) data_get($mapping->metadata, 'calendar_id') === (string) $connection->calendar_id;
+
+        if ($mappingBelongsToActiveCalendar) {
             try {
                 $saved = $service->events->update($connection->calendar_id, $mapping->external_id, $event);
-            } catch (\Google\Service\Exception $exception) {
+            } catch (GoogleServiceException $exception) {
                 if (! in_array($exception->getCode(), [404, 410], true)) {
                     throw $exception;
                 }
-                $saved = $service->events->insert($connection->calendar_id, $event);
+                $saved = $this->insertIdempotently($service, $connection, $meeting, $event);
             }
-            $mapping->update([
-                'external_id' => $saved->getId(),
-                'metadata' => ['calendar_connection_id' => $connection->id, 'calendar_id' => $connection->calendar_id],
-            ]);
         } else {
-            $saved = $service->events->insert($connection->calendar_id, $event);
-            $mapping = IntegrationMapping::create([
-                'campaign_id' => $meeting->campaign_id,
-                'system' => 'google_calendar',
-                'entity_type' => 'meeting',
-                'local_id' => (string) $meeting->id,
-                'external_id' => $saved->getId(),
-                'metadata' => ['calendar_connection_id' => $connection->id, 'calendar_id' => $connection->calendar_id],
-            ]);
+            $saved = $this->insertIdempotently($service, $connection, $meeting, $event);
         }
 
-        $meeting->forceFill([
-            'google_event_id' => $saved->getId(),
-            'google_etag' => $saved->getEtag(),
-        ])->saveQuietly();
-
         $normalized = app(GoogleCalendarSync::class)->normalizeEvent($saved, $connection);
-        ExternalCalendarEvent::withTrashed()->updateOrCreate(
-            [
-                'calendar_connection_id' => $connection->id,
-                'external_event_id' => $saved->getId(),
-                'instance_key' => $normalized['instance_key'],
-            ],
-            [
-                ...$normalized,
-                'campaign_id' => $meeting->campaign_id,
-                'meeting_id' => $meeting->id,
-                'origin' => 'platform',
-                'review_status' => 'approved',
-                'deleted_at' => null,
-            ],
-        );
+        DB::transaction(function () use ($connection, $mapping, $meeting, $normalized, $saved) {
+            if ($mapping) {
+                $mapping->update([
+                    'external_id' => $saved->getId(),
+                    'metadata' => ['calendar_connection_id' => $connection->id, 'calendar_id' => $connection->calendar_id],
+                ]);
+            } else {
+                IntegrationMapping::create([
+                    'campaign_id' => $meeting->campaign_id,
+                    'system' => 'google_calendar',
+                    'entity_type' => 'meeting',
+                    'local_id' => (string) $meeting->id,
+                    'external_id' => $saved->getId(),
+                    'metadata' => ['calendar_connection_id' => $connection->id, 'calendar_id' => $connection->calendar_id],
+                ]);
+            }
+
+            $meeting->forceFill([
+                'google_event_id' => $saved->getId(),
+                'google_etag' => $saved->getEtag(),
+            ])->saveQuietly();
+
+            ExternalCalendarEvent::withTrashed()->updateOrCreate(
+                [
+                    'campaign_id' => $meeting->campaign_id,
+                    'calendar_connection_id' => $connection->id,
+                    'external_event_id' => $saved->getId(),
+                    'instance_key' => $normalized['instance_key'],
+                ],
+                [
+                    ...$normalized,
+                    'campaign_id' => $meeting->campaign_id,
+                    'meeting_id' => $meeting->id,
+                    'origin' => 'platform',
+                    'review_status' => 'approved',
+                    'deleted_at' => null,
+                ],
+            );
+        });
+
+        return CalendarPublicationResult::Confirmed;
     }
 
-    public function delete(Meeting $meeting): void
+    public function delete(Meeting $meeting): CalendarPublicationResult
     {
-        $this->deleteByIdentifiers($meeting->campaign_id, $meeting->id);
+        return $this->deleteByIdentifiers($meeting->campaign_id, $meeting->id);
     }
 
-    public function deleteByIdentifiers(int $campaignId, int $meetingId): void
+    public function deleteByIdentifiers(int $campaignId, int $meetingId): CalendarPublicationResult
     {
+        $this->contextStore->assertCampaign($campaignId);
         $connection = CalendarConnection::query()
             ->where('campaign_id', $campaignId)
             ->where('status', 'active')
@@ -100,22 +126,70 @@ class GoogleCalendarPublisher
             ->where('local_id', (string) $meetingId)
             ->first();
 
-        if (! $connection?->isReady() || ! $mapping) {
-            return;
+        if (! $mapping) {
+            return CalendarPublicationResult::TerminalNoop;
+        }
+        if (
+            ! $connection?->isReady()
+            || (string) data_get($mapping->metadata, 'calendar_id') !== (string) $connection->calendar_id
+        ) {
+            throw new CalendarPublicationDeferred;
         }
 
         try {
             $this->factory->service($connection)->events->delete($connection->calendar_id, $mapping->external_id);
-        } catch (\Google\Service\Exception $exception) {
+        } catch (GoogleServiceException $exception) {
             if ($exception->getCode() !== 404 && $exception->getCode() !== 410) {
                 throw $exception;
             }
         }
 
         ExternalCalendarEvent::where('calendar_connection_id', $connection->id)
+            ->where('campaign_id', $campaignId)
             ->where('external_event_id', $mapping->external_id)
             ->delete();
         $mapping->delete();
+
+        return CalendarPublicationResult::Confirmed;
+    }
+
+    private function insertIdempotently(
+        Calendar $service,
+        CalendarConnection $connection,
+        Meeting $meeting,
+        Event $event,
+    ): Event {
+        $eventId = 't'.substr(hash('sha256', implode('|', [
+            'territorio',
+            $meeting->campaign_id,
+            $meeting->public_id,
+            $connection->calendar_id,
+        ])), 0, 63);
+        $event->setId($eventId);
+
+        try {
+            return $service->events->insert($connection->calendar_id, $event);
+        } catch (GoogleServiceException $exception) {
+            if ($exception->getCode() !== 409) {
+                throw $exception;
+            }
+        }
+
+        $saved = $service->events->get($connection->calendar_id, $eventId);
+        $private = $saved->getExtendedProperties()?->getPrivate() ?? [];
+        if (
+            (string) ($private['territorio_campaign_id'] ?? '') !== (string) $meeting->campaign_id
+            || (string) ($private['territorio_meeting_id'] ?? '') !== (string) $meeting->id
+            || (string) ($private['territorio_meeting_public_id'] ?? '') !== (string) $meeting->public_id
+        ) {
+            throw new GoogleCalendarSafeFailure(
+                'idempotency_collision',
+                'Google Calendar devolvió un identificador ocupado por otro evento.',
+                false,
+            );
+        }
+
+        return $saved;
     }
 
     private function payload(Meeting $meeting): array

@@ -1,0 +1,29 @@
+event_schema: "1"
+id: event.terr-adr-0001.inc1.015
+correlation_id: territorio-terr-adr-0001-increment-1-20260803
+sequence: 15
+previous_event_id: event.terr-adr-0001.inc1.014
+occurred_at: "2026-08-03T14:25:56Z"
+event_type: gate_decided
+actor:
+  type: human
+  ref: gravity-core.owner
+subject:
+  task_id: territorio.terr-adr-0001.increment-1
+  gate_id: gate.material-action
+classification: internal
+authority_refs:
+  - gravity-core.owner
+  - TERR-ADR-0001
+evidence_refs:
+  - id: evidence.user-approval
+    type: task.context
+    locator: codex-thread-user-message:aprobado
+  - id: evidence.proposal
+    type: decision.record
+    locator: reports/propuesta-implementable.md
+details:
+  from_state: blocked
+  to_state: accepted
+  decision: approved
+  reason: El propietario aprobo explicitamente la propuesta consolidada del incremento piloto.

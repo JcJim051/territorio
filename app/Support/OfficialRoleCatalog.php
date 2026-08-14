@@ -17,7 +17,7 @@ final class OfficialRoleCatalog
                     'users.view', 'users.manage', 'users.delete', 'roles.view',
                     'audit.view', 'audit.export', 'analytics.view', 'integrations.manage',
                     'calendar.connections.manage', 'calendar.changes.review', 'calendar.sync.view',
-                    'campaign.settings.manage',
+                    'campaign.settings.manage', 'public_site.manage',
                 ],
             ],
             'auditor' => [
@@ -33,7 +33,7 @@ final class OfficialRoleCatalog
                     'meetings.view', 'meetings.create', 'meetings.manage', 'meetings.approve', 'meetings.delete',
                     'inventory.view', 'inventory.manage', 'inventory.delete', 'analytics.view',
                     'users.view', 'users.manage', 'roles.view',
-                    'calendar.changes.review', 'calendar.sync.view', 'campaign.settings.manage',
+                    'calendar.changes.review', 'calendar.sync.view', 'campaign.settings.manage', 'public_site.manage',
                 ],
             ],
             'agenda' => [

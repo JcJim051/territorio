@@ -1,0 +1,17 @@
+event_schema: "1"
+id: event.google-calendar-review.013
+correlation_id: territorio-google-calendar-sync-review-20260803
+sequence: 13
+previous_event_id: event.google-calendar-review.012
+occurred_at: "2026-08-03T21:31:08Z"
+event_type: task_completed
+actor: {type: agent, ref: gc-security}
+subject: {task_id: territorio.google-calendar-sync.review.security}
+classification: internal
+authority_refs: [gravity-core.owner, TERR-ADR-0002, TERR-ADR-0001]
+evidence_refs:
+  - {id: evidence.security-result, type: result.envelope, locator: results/security.yaml}
+details:
+  from_state: in_progress
+  to_state: completed
+  reason: GC-Security completo revision no destructiva y reporto tres hallazgos sin aceptar riesgo.
